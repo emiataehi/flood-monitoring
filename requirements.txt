@@ -6,3 +6,5 @@ python-dotenv
 pytz
 folium
 streamlit-folium
+numpy
+plotly
