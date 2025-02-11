@@ -53,7 +53,7 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize Supabase client: {e}")
             self.supabase = None
 
-    def fetch_river_data(self, days_back=7):
+    def fetch_river_data(self, days_back=30):
         """
         Retrieve river monitoring data
         
@@ -220,9 +220,48 @@ def main():
     with tab2:
         st.header("Historical Data Analysis")
         if river_data is not None:
+            # Basic statistics overview
+            st.subheader("Data Overview")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Total Records", len(river_data))
+            
+            with col2:
+                st.metric("Date Range", 
+                          f"{river_data['river_timestamp'].min().date()} to {river_data['river_timestamp'].max().date()}")
+            
+            with col3:
+                st.metric("Stations", ", ".join(river_data['location_name'].unique()))
+
             # Trend visualization
             historical_plot = plot_river_trends(river_data)
             st.pyplot(historical_plot)
+
+            # Station-specific summary
+            st.subheader("Station-wise Summary")
+            station_summary = river_data.groupby('location_name').agg({
+                'river_level': ['mean', 'min', 'max', 'count'],
+                'rainfall': ['mean', 'min', 'max', 'count'],
+                'river_timestamp': ['min', 'max']
+            })
+
+            # Rename columns for clarity
+            station_summary.columns = [
+                'Avg River Level', 'Min River Level', 'Max River Level', 'River Level Readings',
+                'Avg Rainfall', 'Min Rainfall', 'Max Rainfall', 'Rainfall Readings',
+                'First Timestamp', 'Last Timestamp'
+            ]
+
+            # Round numeric columns to 3 decimal places
+            numeric_cols = [
+                'Avg River Level', 'Min River Level', 'Max River Level',
+                'Avg Rainfall', 'Min Rainfall', 'Max Rainfall'
+            ]
+            station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
+
+            # Display the summary table
+            st.dataframe(station_summary)
 
     # Station Details Tab
     with tab3:
