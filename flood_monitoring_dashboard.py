@@ -12,206 +12,194 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objs as go
 
-# Station Coordinates with Enhanced Metadata
-STATIONS = {
+# Global Station Configuration
+STATION_CONFIG = {
     'Rochdale': {
-        'lat': 53.611067, 
-        'lon': -2.178685,
-        'description': 'Northern Greater Manchester monitoring station',
+        'full_name': 'Rochdale River Monitoring Station',
+        'latitude': 53.611067,
+        'longitude': -2.178685,
         'river': 'River Roch',
-        'watershed_area': '68.3 sq km',
-        'flood_risk_level': 'Moderate'
+        'description': 'Monitoring station in northern Greater Manchester',
+        'risk_level': 'Moderate'
     },
-    'Manchester': {
-        'lat': 53.499526, 
-        'lon': -2.271756,
-        'description': 'Central Manchester river monitoring station',
+    'Manchester Racecourse': {
+        'full_name': 'Manchester Racecourse River Station',
+        'latitude': 53.499526,
+        'longitude': -2.271756,
         'river': 'River Irwell',
-        'watershed_area': '129.5 sq km',
-        'flood_risk_level': 'High'
+        'description': 'Central Manchester river monitoring location',
+        'risk_level': 'High'
     },
-    'Bury': {
-        'lat': 53.598766, 
-        'lon': -2.305182,
-        'description': 'Bury metropolitan borough monitoring station',
+    'Bury Ground': {
+        'full_name': 'Bury Ground River Monitoring Point',
+        'latitude': 53.598766,
+        'longitude': -2.305182,
         'river': 'River Irwell',
-        'watershed_area': '95.7 sq km',
-        'flood_risk_level': 'Low'
+        'description': 'Monitoring station in Bury metropolitan area',
+        'risk_level': 'Low'
     }
 }
 
-class RealTimeDashboard:
+class FloodMonitoringDashboard:
     def __init__(self):
-        supabase_url = os.getenv('SUPABASE_URL')
-        supabase_key = os.getenv('SUPABASE_KEY')
-        self.supabase = create_client(supabase_url, supabase_key)
-    
-    def load_data(self):
         """
-        Load the most recent river data with extended timeframe
+        Initialize Supabase client for data retrieval
         """
         try:
-            # Fetch data from the last 7 days
-            seven_days_ago = datetime.now(pytz.UTC) - timedelta(days=7)
-            
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_KEY')
+            self.supabase = create_client(supabase_url, supabase_key)
+        except Exception as e:
+            st.error(f"Failed to initialize Supabase client: {e}")
+            self.supabase = None
+
+    def fetch_river_data(self, days_back=7):
+        """
+        Retrieve river monitoring data
+        
+        Args:
+            days_back (int): Number of days to retrieve data for
+        
+        Returns:
+            pd.DataFrame: River monitoring data
+        """
+        try:
+            # Calculate date range
+            end_date = datetime.now(pytz.UTC)
+            start_date = end_date - timedelta(days=days_back)
+
+            # Fetch data from Supabase
             response = self.supabase.table('river_data')\
                 .select('*')\
-                .gte('river_timestamp', seven_days_ago.isoformat())\
+                .gte('river_timestamp', start_date.isoformat())\
+                .lte('river_timestamp', end_date.isoformat())\
                 .order('river_timestamp', desc=True)\
                 .execute()
-            
+
+            # Convert to DataFrame
             if response.data:
-                data = pd.DataFrame(response.data)
-                data['river_timestamp'] = pd.to_datetime(data['river_timestamp'], utc=True)
-                return data
+                df = pd.DataFrame(response.data)
+                df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
+                return df
             else:
-                st.warning("No recent data found")
+                st.warning("No recent river data found")
                 return None
-        
+
         except Exception as e:
-            st.error(f"Error loading data: {e}")
+            st.error(f"Data retrieval error: {e}")
             return None
 
-def create_comprehensive_map():
+def create_station_map():
     """
-    Create a more detailed interactive map
+    Generate interactive map of monitoring stations
+    
+    Returns:
+        plotly Figure: Interactive station map
     """
-    # Prepare data for map
-    map_data = pd.DataFrame.from_dict(STATIONS, orient='index')
-    map_data.reset_index(inplace=True)
-    map_data.columns = ['Station', 'Latitude', 'Longitude', 'Description', 'River', 'Watershed', 'Flood Risk']
+    # Prepare station data
+    stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
+    stations_df.reset_index(inplace=True)
+    stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level']
 
-    # Create interactive map with more details
+    # Create map
     fig = px.scatter_mapbox(
-        map_data, 
+        stations_df, 
         lat='Latitude', 
-        lon='Longitude', 
+        lon='Longitude',
         hover_name='Station',
-        hover_data={
-            'Description': True,
-            'River': True,
-            'Watershed': True,
-            'Flood Risk': True,
-            'Latitude': ':.4f',
-            'Longitude': ':.4f'
-        },
-        color='Flood Risk',
+        hover_data=['Full Name', 'River', 'Description', 'Risk Level'],
+        color='Risk Level',
         color_discrete_map={
-            'Low': 'green',
-            'Moderate': 'yellow',
+            'Low': 'green', 
+            'Moderate': 'yellow', 
             'High': 'red'
         },
-        zoom=9, 
-        height=600,
-        mapbox_style="open-street-map"
+        zoom=9,
+        height=600
     )
+    fig.update_layout(mapbox_style="open-street-map")
     
     return fig
 
-def generate_river_system_insights(data):
+def plot_river_trends(data):
     """
-    Generate comprehensive river system insights
-    """
-    if data is None:
-        return None
+    Generate river level and rainfall trend plots
     
-    # Create insights dataframe
-    insights = []
+    Args:
+        data (pd.DataFrame): River monitoring data
     
-    for station in data['location_name'].unique():
-        station_data = data[data['location_name'] == station]
-        
-        insight = {
-            'Station': station,
-            'Avg River Level': station_data['river_level'].mean(),
-            'Max River Level': station_data['river_level'].max(),
-            'Min River Level': station_data['river_level'].min(),
-            'Avg Rainfall': station_data['rainfall'].mean(),
-            'Max Rainfall': station_data['rainfall'].max(),
-            'Risk Level': STATIONS[station]['flood_risk_level'],
-            'Watershed Area': STATIONS[station]['watershed_area']
-        }
-        insights.append(insight)
-    
-    return pd.DataFrame(insights)
-
-def plot_advanced_historical_trends(historical_data):
-    """
-    Create more comprehensive historical trend visualization
+    Returns:
+        matplotlib Figure: Trend visualization
     """
     plt.figure(figsize=(15, 10))
-    
-    # River Level Trends
+
+    # River Levels
     plt.subplot(2, 1, 1)
-    for station in historical_data['location_name'].unique():
-        station_data = historical_data[historical_data['location_name'] == station]
+    for station in data['location_name'].unique():
+        station_data = data[data['location_name'] == station]
         plt.plot(
             station_data['river_timestamp'], 
             station_data['river_level'], 
-            label=f'{station} River Level',
-            marker='o',
-            markersize=4
+            label=station,
+            marker='o'
         )
-    
-    plt.title('Detailed River Levels Over Time', fontsize=15)
-    plt.xlabel('Timestamp', fontsize=12)
-    plt.ylabel('River Level (m)', fontsize=12)
+    plt.title('River Levels Over Time')
+    plt.xlabel('Timestamp')
+    plt.ylabel('River Level (m)')
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
     plt.xticks(rotation=45)
-    
-    # Rainfall Trends
+
+    # Rainfall
     plt.subplot(2, 1, 2)
-    for station in historical_data['location_name'].unique():
-        station_data = historical_data[historical_data['location_name'] == station]
+    for station in data['location_name'].unique():
+        station_data = data[data['location_name'] == station]
         plt.plot(
             station_data['river_timestamp'], 
             station_data['rainfall'], 
-            label=f'{station} Rainfall',
-            marker='o',
-            markersize=4
+            label=station,
+            marker='o'
         )
-    
-    plt.title('Detailed Rainfall Trends', fontsize=15)
-    plt.xlabel('Timestamp', fontsize=12)
-    plt.ylabel('Rainfall (mm)', fontsize=12)
+    plt.title('Rainfall Over Time')
+    plt.xlabel('Timestamp')
+    plt.ylabel('Rainfall (mm)')
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
     plt.xticks(rotation=45)
-    
+
     plt.tight_layout()
     return plt
 
 def main():
-    st.set_page_config(page_title="Advanced Flood Monitoring Dashboard", layout="wide")
+    # Page configuration
+    st.set_page_config(
+        page_title="Flood Monitoring Dashboard", 
+        layout="wide"
+    )
     st.title("Comprehensive Flood Monitoring Dashboard")
-    
+
     # Initialize dashboard
-    dashboard = RealTimeDashboard()
-    
+    dashboard = FloodMonitoringDashboard()
+
     # Create tabs
     tab1, tab2, tab3, tab4 = st.tabs([
         "Real-Time Monitoring", 
         "Historical Trends", 
         "Station Details", 
-        "River System Analysis"
+        "Geospatial View"
     ])
-    
-    # Load data
-    data = dashboard.load_data()
-    
+
+    # Fetch river data
+    river_data = dashboard.fetch_river_data()
+
     # Real-Time Monitoring Tab
     with tab1:
-        if data is not None:
-            st.header("Current Station Metrics")
+        st.header("Current Station Metrics")
+        if river_data is not None:
             cols = st.columns(3)
-            
-            for i, station in enumerate(data['location_name'].unique()):
+            for i, station in enumerate(river_data['location_name'].unique()):
                 with cols[i]:
-                    station_data = data[data['location_name'] == station]
+                    station_data = river_data[river_data['location_name'] == station]
                     river_level = station_data['river_level'].values[0]
                     
-                    # Risk assessment
                     risk_text = 'Low Risk'
                     delta_color = 'normal'
                     
@@ -227,101 +215,38 @@ def main():
                         f"Risk: {risk_text}",
                         delta_color=delta_color
                     )
-    
+
     # Historical Trends Tab
     with tab2:
-        st.header("Comprehensive Historical Data Analysis")
-        
-        historical_data = dashboard.load_data()
-        
-        if historical_data is not None:
-            # Data Overview
-            st.subheader("Data Overview")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Records", len(historical_data))
-            
-            with col2:
-                st.metric("Date Range", 
-                          f"{historical_data['river_timestamp'].min().date()} to {historical_data['river_timestamp'].max().date()}")
-            
-            with col3:
-                st.metric("Stations", ", ".join(historical_data['location_name'].unique()))
-            
-            # Detailed Trend Visualization
-            st.subheader("Detailed Trend Analysis")
-            historical_plot = plot_advanced_historical_trends(historical_data)
+        st.header("Historical Data Analysis")
+        if river_data is not None:
+            # Trend visualization
+            historical_plot = plot_river_trends(river_data)
             st.pyplot(historical_plot)
-    
+
     # Station Details Tab
     with tab3:
-        st.header("Detailed Station Information")
+        st.header("Station Information")
+        selected_station = st.selectbox(
+            "Select Station", 
+            list(STATION_CONFIG.keys())
+        )
         
-        if data is not None:
-            selected_station = st.selectbox(
-                "Select Station", 
-                data['location_name'].unique()
-            )
-            
-            # Detailed station information with metadata
-            st.subheader(f"{selected_station} Comprehensive Details")
-            
-            # Display station-specific details from STATIONS dictionary
-            station_details = STATIONS[selected_station]
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write(f"**Description:** {station_details['description']}")
-                st.write(f"**Primary River:** {station_details['river']}")
-                st.write(f"**Watershed Area:** {station_details['watershed_area']}")
-            
-            with col2:
-                st.write(f"**Flood Risk Level:** {station_details['flood_risk_level']}")
-                st.write(f"**Latitude:** {station_details['lat']}")
-                st.write(f"**Longitude:** {station_details['lon']}")
-    
-    # River System Analysis Tab
-    with tab4:
-        st.header("Comprehensive River System Insights")
-        
-        # Interactive Map
-        st.subheader("Monitoring Stations Geographic Distribution")
-        map_fig = create_comprehensive_map()
-        st.plotly_chart(map_fig, use_container_width=True)
-        
-        # River System Insights
-        st.subheader("Comparative Station Analysis")
-        if data is not None:
-            river_insights = generate_river_system_insights(data)
-            if river_insights is not None:
-                st.dataframe(river_insights)
-            
-            # Additional Analysis Visualizations
-            st.subheader("Station Comparison")
-            
-            # River Level Comparison
-            river_level_fig = px.bar(
-                river_insights, 
-                x='Station', 
-                y='Avg River Level', 
-                title='Average River Levels by Station',
-                labels={'Avg River Level': 'Average River Level (m)'}
-            )
-            st.plotly_chart(river_level_fig, use_container_width=True)
-            
-            # Rainfall Comparison
-            rainfall_fig = px.bar(
-                river_insights, 
-                x='Station', 
-                y='Avg Rainfall', 
-                title='Average Rainfall by Station',
-                labels={'Avg Rainfall': 'Average Rainfall (mm)'}
-            )
-            st.plotly_chart(rainfall_fig, use_container_width=True)
+        # Display station details
+        station_info = STATION_CONFIG[selected_station]
+        st.write(f"**Full Name:** {station_info['full_name']}")
+        st.write(f"**River:** {station_info['river']}")
+        st.write(f"**Description:** {station_info['description']}")
+        st.write(f"**Risk Level:** {station_info['risk_level']}")
+        st.write(f"**Coordinates:** {station_info['latitude']}, {station_info['longitude']}")
 
-    # Update query params
+    # Geospatial View Tab
+    with tab4:
+        st.header("Station Geographic Distribution")
+        station_map = create_station_map()
+        st.plotly_chart(station_map, use_container_width=True)
+
+    # Optional: Update query parameters
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
