@@ -8,17 +8,27 @@ from datetime import datetime
 import folium
 from streamlit_folium import folium_static
 from geospatial_utils import create_station_map
+import numpy as np
 
+# Station Coordinates (Global definition)
+STATIONS = {
+    'Rochdale': {'lat': 53.611067, 'lon': -2.178685},
+    'Manchester': {'lat': 53.499526, 'lon': -2.271756},
+    'Bury': {'lat': 53.598766, 'lon': -2.305182}
+}
 
 class RealTimeDashboard:
     def __init__(self):
+        # Initialize Supabase client
         supabase_url = os.getenv('SUPABASE_URL')
         supabase_key = os.getenv('SUPABASE_KEY')
         self.supabase = create_client(supabase_url, supabase_key)
     
     def load_data(self):
+        """
+        Load the most recent river data
+        """
         try:
-            # Fetch latest data from Supabase
             response = self.supabase.table('river_data')\
                 .select('*')\
                 .order('river_timestamp', desc=True)\
@@ -38,8 +48,10 @@ class RealTimeDashboard:
             return None
     
     def collect_historical_data(self):
+        """
+        Collect historical river data
+        """
         try:
-            # Fetch historical data from Supabase
             response = self.supabase.table('river_data')\
                 .select('*')\
                 .order('river_timestamp')\
@@ -57,7 +69,6 @@ class RealTimeDashboard:
             st.error(f"Error collecting historical data: {e}")
             return None
 
-# Function moved outside the class definition
 def plot_historical_trends(historical_data):
     """
     Create plots for historical river levels and rainfall
@@ -98,27 +109,39 @@ def plot_historical_trends(historical_data):
     plt.tight_layout()
     return fig
 
+def create_geospatial_overview():
+    """
+    Create a geospatial overview of stations
+    """
+    # Create DataFrame of station coordinates
+    coord_df = pd.DataFrame.from_dict(STATIONS, orient='index')
+    coord_df.columns = ['Latitude', 'Longitude']
+    coord_df.index.name = 'Station'
+    
+    return coord_df
+
 def main():
+    # Configure Streamlit page
     st.set_page_config(page_title="Flood Monitoring Dashboard", layout="wide")
     st.title("Comprehensive Flood Monitoring Dashboard")
     
     # Initialize dashboard
     dashboard = RealTimeDashboard()
     
-    # Create tabs - Add a fourth tab for Geospatial View
+    # Create tabs
     tab1, tab2, tab3, tab4 = st.tabs([
         "Real-Time Monitoring", 
         "Historical Trends", 
         "Station Details", 
-        "Geospatial View"
+        "Geospatial Overview"
     ])
     
     # Load data
     data = dashboard.load_data()
     
+    # Real-Time Monitoring Tab
     with tab1:
         if data is not None:
-            # Display station metrics
             st.header("Station Metrics")
             cols = st.columns(3)
             
@@ -144,6 +167,7 @@ def main():
                         delta_color=delta_color
                     )
     
+    # Historical Trends Tab
     with tab2:
         st.header("Historical Data Trends")
         
@@ -178,6 +202,7 @@ def main():
             })
             st.dataframe(station_summary)
     
+    # Station Details Tab
     with tab3:
         st.header("Detailed Station Information")
         
@@ -200,33 +225,20 @@ def main():
                 st.write(f"**Rainfall Station ID:** {station_data['rainfall_station_id'].values[0]}")
                 st.write(f"**Current Rainfall:** {station_data['rainfall'].values[0]:.3f} mm")
     
-    # New Geospatial Tab
+    # Geospatial Overview Tab
     with tab4:
-        st.header("River Monitoring Stations Map")
+        st.header("Geospatial Station Overview")
         
-        # Create the map
-        station_map = create_station_map()
-        
-        # Display the map in Streamlit
-        if station_map:
-            folium_static(station_map)
-        else:
-            st.error("Failed to generate station map")
-        
-        # Additional geospatial information
+        # Display station coordinates
         st.subheader("Station Coordinates")
-        stations = {
-            'Rochdale': {'lat': 53.611067, 'lon': -2.178685},
-            'Manchester': {'lat': 53.499526, 'lon': -2.271756},
-            'Bury': {'lat': 53.598766, 'lon': -2.305182}
-        }
-        
-        # Create a DataFrame for station coordinates
-        coord_df = pd.DataFrame.from_dict(stations, orient='index')
-        coord_df.columns = ['Latitude', 'Longitude']
-        coord_df.index.name = 'Station'
-        
+        coord_df = create_geospatial_overview()
         st.dataframe(coord_df)
+        
+        # Additional geospatial insights
+        st.subheader("Station Locations")
+        st.write("Stations are located in different parts of the region:")
+        for station, coords in STATIONS.items():
+            st.write(f"- **{station}**: Latitude {coords['lat']}, Longitude {coords['lon']}")
 
     # Update query params
     st.query_params.update(refresh=True)
