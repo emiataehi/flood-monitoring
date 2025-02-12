@@ -12,6 +12,23 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objs as go
 
+
+# At the top of your file, add:
+from prediction_utils import FloodPredictor
+
+# In your main() function, add:
+predictor = FloodPredictor()
+
+# In your real-time monitoring tab, add predictions:
+if data is not None:
+    for station in data['location_name'].unique():
+        station_data = data[data['location_name'] == station]
+        prediction, error = predictor.predict_next_level(station, station_data)
+        if prediction is not None:
+            risk_level = predictor.get_risk_level(prediction, station)
+            st.write(f"Predicted next level for {station}: {prediction:.3f}m")
+            st.write(f"Risk Level: {risk_level}")
+
 # Global Station Configuration
 STATION_CONFIG = {
     'Rochdale': {
