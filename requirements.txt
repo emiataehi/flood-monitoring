@@ -8,3 +8,5 @@ folium
 streamlit-folium
 numpy
 plotly
+scikit-learn
+joblib
