@@ -1,5 +1,4 @@
-import pandas as pd
-import numpy as np
+# watershed_utils.py
 
 class WatershedAnalysis:
     def __init__(self):
@@ -22,60 +21,36 @@ class WatershedAnalysis:
             }
         }
     
-    def analyze_flow_impact(self, current_levels, rainfall_data):
-        """Analyze how changes might impact downstream stations"""
-        impact_analysis = {}
+    def calculate_risk_score(self, station_name, current_level):
+        """Calculate risk score for a station"""
+        station = self.station_info[station_name]
         
-        for station in self.station_info:
-            # Get current station data
-            station_data = {
-                'current_level': current_levels.get(station, 0),
-                'elevation': self.station_info[station]['elevation'],
-                'catchment_area': self.station_info[station]['catchment_area'],
-                'rainfall': rainfall_data.get(station, 0)
-            }
-            
-            # Calculate basic risk score (0-100)
-            risk_score = self._calculate_risk_score(station_data)
-            
-            # Get downstream impact
-            downstream = self.station_info[station]['flow_to']
-            downstream_impact = "None" if not downstream else f"May affect {downstream}"
-            
-            impact_analysis[station] = {
-                'risk_score': risk_score,
-                'downstream_impact': downstream_impact,
-                'catchment_area': station_data['catchment_area'],
-                'elevation': station_data['elevation']
-            }
+        # Factor in elevation (lower elevation = higher base risk)
+        elevation_factor = 1 - (station['elevation'] / 200)  # Normalize to 0-1
         
-        return impact_analysis
-    
-    def _calculate_risk_score(self, station_data):
-        """Calculate risk score based on current conditions"""
-        # Normalize factors to 0-1 scale
-        level_factor = min(station_data['current_level'] * 2, 1)
-        rain_factor = min(station_data['rainfall'] * 0.5, 1)
-        area_factor = station_data['catchment_area'] / 20  # Normalize by max area
+        # Factor in current water level
+        level_factor = current_level * 2  # Simple scaling
         
-        # Combined weighted score
-        risk_score = (level_factor * 0.4 + 
-                     rain_factor * 0.3 + 
-                     area_factor * 0.3) * 100
-        
+        # Combine factors (weighted average)
+        risk_score = (elevation_factor * 0.6 + level_factor * 0.4) * 100
         return min(100, max(0, risk_score))  # Ensure 0-100 range
-
-    def get_watershed_summary(self):
-        """Get a summary of watershed characteristics"""
+    
+    def get_flow_path(self, station_name):
+        """Get downstream flow path for a station"""
+        if self.station_info[station_name]['flow_to']:
+            next_station = self.station_info[station_name]['flow_to']
+            elevation_diff = (self.station_info[station_name]['elevation'] - 
+                            self.station_info[next_station]['elevation'])
+            return {
+                'next_station': next_station,
+                'elevation_diff': elevation_diff
+            }
+        return None
+    
+    def get_station_info(self, station_name):
+        """Get all information for a station"""
         return {
-            'total_area': sum(s['catchment_area'] for s in self.station_info.values()),
-            'elevation_range': {
-                'min': min(s['elevation'] for s in self.station_info.values()),
-                'max': max(s['elevation'] for s in self.station_info.values())
-            },
-            'flow_paths': [
-                f"{station} → {info['flow_to']}" 
-                for station, info in self.station_info.items() 
-                if info['flow_to']
-            ]
+            'elevation': self.station_info[station_name]['elevation'],
+            'catchment_area': self.station_info[station_name]['catchment_area'],
+            'flow_to': self.station_info[station_name]['flow_to']
         }
