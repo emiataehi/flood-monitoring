@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objs as go
 from prediction_utils import FloodPredictor
+from watershed_utils import WatershedAnalysis
 
 # Add prediction system class
 class FloodPredictionSystem:
@@ -40,6 +41,75 @@ class FloodPredictionSystem:
         elif current_level > warning_level * 0.8:
             return "MODERATE", "yellow"
         return "LOW", "green"
+
+# Add to your imports at the top
+from watershed_utils import WatershedAnalysis
+
+# In your FloodMonitoringDashboard class, add this method:
+def show_watershed_analysis(self, data):
+    """Show watershed analysis tab"""
+    st.header("Watershed Analysis")
+    
+    if data is not None:
+        # Initialize watershed analysis
+        watershed = WatershedAnalysis()
+        
+        # Get current levels and rainfall
+        current_levels = {
+            row['location_name']: row['river_level'] 
+            for _, row in data.groupby('location_name').last().iterrows()
+        }
+        rainfall_data = {
+            row['location_name']: row['rainfall']
+            for _, row in data.groupby('location_name').last().iterrows()
+        }
+        
+        # Get watershed summary
+        summary = watershed.get_watershed_summary()
+        
+        # Display watershed overview
+        st.subheader("Watershed Overview")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Catchment Area", f"{summary['total_area']:.1f} km²")
+        with col2:
+            st.metric("Elevation Range", 
+                     f"{summary['elevation_range']['min']}m - {summary['elevation_range']['max']}m")
+        with col3:
+            st.metric("Number of Flow Paths", len(summary['flow_paths']))
+        
+        # Show flow paths
+        st.subheader("Water Flow Paths")
+        for path in summary['flow_paths']:
+            st.write(f"- {path}")
+        
+        # Get and display impact analysis
+        st.subheader("Station Analysis")
+        impact = watershed.analyze_flow_impact(current_levels, rainfall_data)
+        
+        # Display results in columns
+        cols = st.columns(3)
+        for i, (station, analysis) in enumerate(impact.items()):
+            with cols[i]:
+                st.write(f"**{station}**")
+                st.write(f"Catchment Area: {analysis['catchment_area']} km²")
+                st.write(f"Elevation: {analysis['elevation']}m")
+                st.write(f"Risk Score: {analysis['risk_score']:.1f}%")
+                st.write(f"Downstream Impact: {analysis['downstream_impact']}")
+
+# In your main() function, update your tabs:
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "Real-Time Monitoring",
+    "Predictions",
+    "Historical Trends",
+    "Station Details",
+    "Watershed Analysis"  # New tab
+])
+
+# And add the watershed tab:
+with tab5:
+    dashboard.show_watershed_analysis(river_data)
+
 
 class FloodPredictionSystem:
     def __init__(self):
