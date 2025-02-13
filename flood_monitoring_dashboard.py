@@ -326,7 +326,7 @@ class FloodMonitoringDashboard:
         fig.update_layout(mapbox_style="open-street-map")
         st.plotly_chart(fig, use_container_width=True)
 
-    def show_watershed_analysis(self, data):
+def show_watershed_analysis(self, data):
         """Display watershed analysis tab"""
         st.header("Watershed Analysis")
         
@@ -338,6 +338,7 @@ class FloodMonitoringDashboard:
             st.subheader("Water Flow Network")
             cols = st.columns(3)
             
+            # Show station details
             for i, (station, level) in enumerate(current_levels.items()):
                 with cols[i]:
                     st.write(f"**{station}**")
@@ -345,22 +346,23 @@ class FloodMonitoringDashboard:
                     risk = self.watershed.calculate_risk_score(station, level)
                     flow = self.watershed.get_flow_path(station)
                     
-                    # Display station info
+                    # Current level and risk
                     st.metric(
                         "Current Level",
                         f"{level:.3f}m",
                         f"Risk: {risk:.1f}%"
                     )
                     
-                    # Station details
+                    # Station characteristics
                     st.write(f"Elevation: {info['elevation']}m")
                     st.write(f"Catchment Area: {info['catchment_area']} km²")
                     
+                    # Flow information
                     if flow:
                         st.write(f"Flows to: {flow['next_station']}")
                         st.write(f"Elevation difference: {flow['elevation_diff']}m")
                     
-                    # Risk color coding
+                    # Risk level indicator
                     if risk >= 80:
                         st.error(f"High Risk: {risk:.1f}%")
                     elif risk >= 50:
@@ -368,19 +370,16 @@ class FloodMonitoringDashboard:
                     else:
                         st.success(f"Low Risk: {risk:.1f}%")
             
-            # Add flow visualization
+            # Network visualization
             st.subheader("Flow Network Visualization")
-            
-            # Prepare data for visualization
             stations_list = list(current_levels.index)
             elevations = [self.watershed.station_info[s]['elevation'] for s in stations_list]
             water_levels = [level + self.watershed.station_info[s]['elevation'] 
                           for s, level in current_levels.items()]
             
-            # Create figure
             fig = go.Figure()
             
-            # Add elevation profile
+            # Elevation profile
             fig.add_trace(go.Scatter(
                 x=stations_list,
                 y=elevations,
@@ -390,7 +389,7 @@ class FloodMonitoringDashboard:
                 marker=dict(size=10)
             ))
             
-            # Add water levels
+            # Water levels
             fig.add_trace(go.Scatter(
                 x=stations_list,
                 y=water_levels,
@@ -400,7 +399,6 @@ class FloodMonitoringDashboard:
                 marker=dict(size=10)
             ))
             
-            # Update layout
             fig.update_layout(
                 title='Station Elevations and Water Levels',
                 xaxis_title='Stations',
@@ -409,8 +407,8 @@ class FloodMonitoringDashboard:
             )
             
             st.plotly_chart(fig, use_container_width=True)
-
-            # Add summary section
+            
+            # Network summary
             st.subheader("Network Summary")
             summary_cols = st.columns(3)
             
@@ -426,10 +424,8 @@ class FloodMonitoringDashboard:
             
             with summary_cols[0]:
                 st.metric("Total Catchment Area", f"{total_catchment:.1f} km²")
-            
             with summary_cols[1]:
                 st.metric("Elevation Range", f"{elevation_range}m")
-            
             with summary_cols[2]:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
