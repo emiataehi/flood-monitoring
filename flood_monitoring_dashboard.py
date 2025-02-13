@@ -367,64 +367,71 @@ class FloodMonitoringDashboard:
                         st.warning(f"Moderate Risk: {risk:.1f}%")
                     else:
                         st.success(f"Low Risk: {risk:.1f}%")
-                        
-        
-    
-    # Add flow visualization
-    st.subheader("Flow Network Visualization")
-    fig = go.Figure()
-    
-    # Add stations
-    stations = list(current_levels.index)
-    elevations = [self.watershed.station_info[s]['elevation'] for s in stations]
-    
-    # Create elevation profile
-    fig.add_trace(go.Scatter(
-        x=stations,
-        y=elevations,
-        name='Elevation Profile',
-        mode='lines+markers',
-        line=dict(color='blue'),
-        marker=dict(size=10)
-    ))
-    
-    # Add current water levels
-    water_levels = [level + self.watershed.station_info[s]['elevation'] 
-                   for s, level in current_levels.items()]
-    fig.add_trace(go.Scatter(
-        x=stations,
-        y=water_levels,
-        name='Water Level',
-        mode='lines+markers',
-        line=dict(color='red', dash='dash'),
-        marker=dict(size=10)
-    ))
-    
-    fig.update_layout(
-        title='Station Elevations and Water Levels',
-        xaxis_title='Stations',
-        yaxis_title='Height (meters)',
-        height=400
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
+            
+            # Add flow visualization
+            st.subheader("Flow Network Visualization")
+            
+            # Prepare data for visualization
+            stations_list = list(current_levels.index)
+            elevations = [self.watershed.station_info[s]['elevation'] for s in stations_list]
+            water_levels = [level + self.watershed.station_info[s]['elevation'] 
+                          for s, level in current_levels.items()]
+            
+            # Create figure
+            fig = go.Figure()
+            
+            # Add elevation profile
+            fig.add_trace(go.Scatter(
+                x=stations_list,
+                y=elevations,
+                name='Elevation Profile',
+                mode='lines+markers',
+                line=dict(color='blue'),
+                marker=dict(size=10)
+            ))
+            
+            # Add water levels
+            fig.add_trace(go.Scatter(
+                x=stations_list,
+                y=water_levels,
+                name='Water Level',
+                mode='lines+markers',
+                line=dict(color='red', dash='dash'),
+                marker=dict(size=10)
+            ))
+            
+            # Update layout
+            fig.update_layout(
+                title='Station Elevations and Water Levels',
+                xaxis_title='Stations',
+                yaxis_title='Height (meters)',
+                height=400
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
 
-    # Add a summary section
-    st.subheader("Network Summary")
-    summary_cols = st.columns(3)
-    
-    with summary_cols[0]:
-        st.metric("Total Catchment Area", 
-                 f"{sum(info['catchment_area'] for info in self.watershed.station_info.values()):.1f} km²")
-    
-    with summary_cols[1]:
-        elevation_range = max(info['elevation'] for info in self.watershed.station_info.values()) - \
-                         min(info['elevation'] for info in self.watershed.station_info.values())
-        st.metric("Elevation Range", f"{elevation_range}m")
-    
-    with summary_cols[2]:
-        avg_risk = sum(self.watershed.calculate_risk_score(s, l) for s, l in current_levels.items()) / len(current_levels)
-        st.metric("Average Network Risk", f"{avg_risk:.1f}%")
+            # Add summary section
+            st.subheader("Network Summary")
+            summary_cols = st.columns(3)
+            
+            total_catchment = sum(info['catchment_area'] 
+                                for info in self.watershed.station_info.values())
+            elevation_range = (max(info['elevation'] 
+                                 for info in self.watershed.station_info.values()) - 
+                             min(info['elevation'] 
+                                 for info in self.watershed.station_info.values()))
+            avg_risk = (sum(self.watershed.calculate_risk_score(s, l) 
+                          for s, l in current_levels.items()) / 
+                       len(current_levels))
+            
+            with summary_cols[0]:
+                st.metric("Total Catchment Area", f"{total_catchment:.1f} km²")
+            
+            with summary_cols[1]:
+                st.metric("Elevation Range", f"{elevation_range}m")
+            
+            with summary_cols[2]:
+                st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
 def main():
     # Page configuration
