@@ -273,9 +273,9 @@ class FloodMonitoringDashboard:
             )
             
             st.plotly_chart(fig, use_container_width=True)
-			
-	def show_historical_trends(self, data):
-         """Display historical trends tab"""
+	
+    def show_historical_trends(self, data):
+        """Display historical trends tab"""
         st.header("Historical Data Analysis")
         if data is not None:
             # Basic statistics overview
@@ -335,7 +335,7 @@ class FloodMonitoringDashboard:
             station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
 
             st.dataframe(station_summary)
-            
+
     def show_station_details(self, data):
         """Display station details tab"""
         st.header("Station Information")
@@ -357,7 +357,7 @@ class FloodMonitoringDashboard:
             st.write(f"**River Level:** {station_data['river_level']:.3f}m")
             st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
             st.write(f"**Timestamp:** {station_data['river_timestamp']}")
-			
+
 	def show_geospatial_view(self, data):
         """Display geospatial view tab"""
         st.header("Station Geographic Distribution")
@@ -453,7 +453,7 @@ class FloodMonitoringDashboard:
                 st.metric("Elevation Range", f"{elevation_range}m")
             with summary_cols[2]:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
-				
+
 	def show_alerts(self, data):
         """Display flood alerts tab"""
         st.header("Flood Alerts and Warnings")
