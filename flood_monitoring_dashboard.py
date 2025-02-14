@@ -432,8 +432,9 @@ class FloodMonitoringDashboard:
             
             with summary_cols[2]:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
-
-def show_alerts(self, data):
+    
+    
+    def show_alerts(self, data):
     """Display alerts tab"""
     st.header("Flood Alert System")
     
@@ -513,6 +514,7 @@ def show_alerts(self, data):
                 )
                 
                 st.write(f"**Message:** {message}")
+    
 def main():
     # Page configuration
     st.set_page_config(
