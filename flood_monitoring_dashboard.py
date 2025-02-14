@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -57,6 +56,73 @@ class FloodPredictionSystem:
             return "MODERATE", "yellow"
         return "LOW", "green"
 
+class AdvancedAnalytics:
+    def __init__(self):
+        self.baseline_levels = {
+            'Rochdale': 0.168,
+            'Manchester Racecourse': 0.928,
+            'Bury Ground': 0.311
+        }
+    
+    def analyze_station(self, data, station_name):
+        """Detailed analysis for a single station"""
+        station_data = data[data['location_name'] == station_name].copy()
+        station_data = station_data.sort_values('river_timestamp')
+        
+        # Basic statistics
+        current_level = station_data['river_level'].iloc[-1]
+        avg_level = station_data['river_level'].mean()
+        baseline = self.baseline_levels[station_name]
+        deviation = current_level - baseline
+        
+        # Trend analysis (last 24 hours)
+        recent_data = station_data.tail(24)
+        trend = recent_data['river_level'].diff().mean()
+        
+        if abs(trend) < 0.0001:
+            trend_direction = "Stable"
+        elif trend > 0:
+            trend_direction = "Rising"
+        else:
+            trend_direction = "Falling"
+        
+        # Pattern detection
+        hourly_pattern = station_data.groupby(
+            station_data['river_timestamp'].dt.hour
+        )['river_level'].mean()
+        
+        peak_hour = hourly_pattern.idxmax()
+        low_hour = hourly_pattern.idxmin()
+        
+        return {
+            'current_level': current_level,
+            'average_level': avg_level,
+            'baseline': baseline,
+            'deviation': deviation,
+            'trend': trend_direction,
+            'trend_rate': trend,
+            'peak_hour': peak_hour,
+            'low_hour': low_hour,
+            'hourly_pattern': hourly_pattern.to_dict()
+        }
+    
+    def get_forecast(self, data, station_name, hours_ahead=24):
+        """Generate forecast for a station"""
+        station_data = data[data['location_name'] == station_name].copy()
+        current_level = station_data['river_level'].iloc[-1]
+        trend = station_data['river_level'].diff().mean()
+        
+        forecast = []
+        for hour in range(hours_ahead):
+            predicted_level = current_level + (trend * hour)
+            predicted_level = max(0, predicted_level)
+            forecast.append(predicted_level)
+        
+        return {
+            'levels': forecast,
+            'confidence': 'High' if abs(trend) < 0.001 else 'Medium'
+        }
+
 # Global Station Configuration
 STATION_CONFIG = {
     'Rochdale': {
@@ -84,7 +150,6 @@ STATION_CONFIG = {
         'risk_level': 'Low'
     }
 }
-
 class FloodMonitoringDashboard:
     def __init__(self):
         """Initialize dashboard components"""
@@ -94,6 +159,7 @@ class FloodMonitoringDashboard:
             self.supabase = create_client(supabase_url, supabase_key)
             self.predictor = FloodPredictionSystem()
             self.watershed = WatershedAnalysis()
+            self.analytics = AdvancedAnalytics()
         except Exception as e:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
@@ -122,7 +188,7 @@ class FloodMonitoringDashboard:
         except Exception as e:
             st.error(f"Data retrieval error: {e}")
             return None
-    
+
     def show_real_time_monitoring(self, data):
         """Display real-time monitoring tab"""
         st.header("Current Station Metrics")
@@ -271,263 +337,16 @@ class FloodMonitoringDashboard:
 
             st.dataframe(station_summary)
 
-    def show_station_details(self, data):
-        """Display station details tab"""
-        st.header("Station Information")
-        selected_station = st.selectbox(
-            "Select Station", 
-            list(STATION_CONFIG.keys())
-        )
-        
-        station_info = STATION_CONFIG[selected_station]
-        st.write(f"**Full Name:** {station_info['full_name']}")
-        st.write(f"**River:** {station_info['river']}")
-        st.write(f"**Description:** {station_info['description']}")
-        st.write(f"**Risk Level:** {station_info['risk_level']}")
-        st.write(f"**Coordinates:** {station_info['latitude']}, {station_info['longitude']}")
-
-        if data is not None:
-            st.subheader("Latest Readings")
-            station_data = data[data['location_name'] == selected_station].iloc[0]
-            st.write(f"**River Level:** {station_data['river_level']:.3f}m")
-            st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
-            st.write(f"**Timestamp:** {station_data['river_timestamp']}")
-
-    def show_geospatial_view(self, data):
-        """Display geospatial view tab"""
-        st.header("Station Geographic Distribution")
-        
-        # Create station data for map
-        stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
-        stations_df.reset_index(inplace=True)
-        stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level']
-
-        if data is not None:
-            # Add current levels to stations
-            current_levels = data.groupby('location_name')['river_level'].first()
-            stations_df['Current Level'] = stations_df['Station'].map(current_levels)
-
-        # Create map
-        fig = px.scatter_mapbox(
-            stations_df, 
-            lat='Latitude', 
-            lon='Longitude',
-            hover_name='Station',
-            hover_data=['Full Name', 'River', 'Description', 'Risk Level', 'Current Level'],
-            color='Risk Level',
-            color_discrete_map={
-                'Low': 'green', 
-                'Moderate': 'yellow', 
-                'High': 'red'
-            },
-            zoom=9,
-            height=600
-        )
-        fig.update_layout(mapbox_style="open-street-map")
-        st.plotly_chart(fig, use_container_width=True)
-
-    def show_watershed_analysis(self, data):
-        """Display watershed analysis tab"""
-        st.header("Watershed Analysis")
-        
-        if data is not None:
-            # Get current levels for each station
-            current_levels = data.groupby('location_name')['river_level'].last()
-            
-            # Display flow paths
-            st.subheader("Water Flow Network")
-            cols = st.columns(3)
-            
-            for i, (station, level) in enumerate(current_levels.items()):
-                with cols[i]:
-                    st.write(f"**{station}**")
-                    info = self.watershed.get_station_info(station)
-                    risk = self.watershed.calculate_risk_score(station, level)
-                    flow = self.watershed.get_flow_path(station)
-                    
-                    # Display station info
-                    st.metric(
-                        "Current Level",
-                        f"{level:.3f}m",
-                        f"Risk: {risk:.1f}%"
-                    )
-                    
-                    # Station details
-                    st.write(f"Elevation: {info['elevation']}m")
-                    st.write(f"Catchment Area: {info['catchment_area']} km²")
-                    
-                    if flow:
-                        st.write(f"Flows to: {flow['next_station']}")
-                        st.write(f"Elevation difference: {flow['elevation_diff']}m")
-                    
-                    # Risk color coding
-                    if risk >= 80:
-                        st.error(f"High Risk: {risk:.1f}%")
-                    elif risk >= 50:
-                        st.warning(f"Moderate Risk: {risk:.1f}%")
-                    else:
-                        st.success(f"Low Risk: {risk:.1f}%")
-            
-            # Add flow visualization
-            st.subheader("Flow Network Visualization")
-            
-            # Prepare data for visualization
-            stations_list = list(current_levels.index)
-            elevations = [self.watershed.station_info[s]['elevation'] for s in stations_list]
-            water_levels = [level + self.watershed.station_info[s]['elevation'] 
-                          for s, level in current_levels.items()]
-            
-            # Create figure
-            fig = go.Figure()
-            
-            # Add elevation profile
-            fig.add_trace(go.Scatter(
-                x=stations_list,
-                y=elevations,
-                name='Elevation Profile',
-                mode='lines+markers',
-                line=dict(color='blue'),
-                marker=dict(size=10)
-            ))
-            
-            # Add water levels
-            fig.add_trace(go.Scatter(
-                x=stations_list,
-                y=water_levels,
-                name='Water Level',
-                mode='lines+markers',
-                line=dict(color='red', dash='dash'),
-                marker=dict(size=10)
-            ))
-            
-            # Update layout
-            fig.update_layout(
-                title='Station Elevations and Water Levels',
-                xaxis_title='Stations',
-                yaxis_title='Height (meters)',
-                height=400
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Add summary section
-            st.subheader("Network Summary")
-            summary_cols = st.columns(3)
-            
-            total_catchment = sum(info['catchment_area'] 
-                                for info in self.watershed.station_info.values())
-            elevation_range = (max(info['elevation'] 
-                                 for info in self.watershed.station_info.values()) - 
-                             min(info['elevation'] 
-                                 for info in self.watershed.station_info.values()))
-            avg_risk = (sum(self.watershed.calculate_risk_score(s, l) 
-                          for s, l in current_levels.items()) / 
-                       len(current_levels))
-            
-            with summary_cols[0]:
-                st.metric("Total Catchment Area", f"{total_catchment:.1f} km²")
-            
-            with summary_cols[1]:
-                st.metric("Elevation Range", f"{elevation_range}m")
-            
-            with summary_cols[2]:
-                st.metric("Average Network Risk", f"{avg_risk:.1f}%")
-    
-    
-    def show_alerts(self, data):
-        """Display alerts tab"""
-        st.header("Flood Alert System")
-        
-        if data is not None:
-            # Current Alerts Section
-            st.subheader("Current Alert Status")
-            alert_cols = st.columns(3)
-            
-            # Initialize thresholds
-            thresholds = {
-                'Rochdale': {
-                    'warning': 0.168,
-                    'alert': 0.169,
-                    'critical': 0.170
-                },
-                'Manchester Racecourse': {
-                    'warning': 0.938,
-                    'alert': 0.944,
-                    'critical': 0.950
-                },
-                'Bury Ground': {
-                    'warning': 0.314,
-                    'alert': 0.317,
-                    'critical': 0.320
-                }
-            }
-            
-            for i, station in enumerate(data['location_name'].unique()):
-                with alert_cols[i]:
-                    station_data = data[data['location_name'] == station].iloc[0]
-                    current_level = station_data['river_level']
-                    
-                    # Get trend
-                    station_history = data[data['location_name'] == station]
-                    trend = "Stable"
-                    if len(station_history) > 1:
-                        level_change = station_history['river_level'].diff().mean()
-                        if abs(level_change) < 0.0001:
-                            trend = "Stable"
-                        elif level_change > 0:
-                            trend = "Rising"
-                        else:
-                            trend = "Falling"
-                    
-                    # Determine alert status
-                    station_thresholds = thresholds[station]
-                    if current_level > station_thresholds['critical']:
-                        status = 'CRITICAL'
-                        status_color = 'red'
-                        message = 'Immediate action required'
-                    elif current_level > station_thresholds['alert']:
-                        status = 'ALERT'
-                        status_color = 'orange'
-                        message = 'Prepare for potential flooding'
-                    elif current_level > station_thresholds['warning']:
-                        status = 'WARNING'
-                        status_color = 'yellow'
-                        message = 'Monitor conditions closely'
-                    else:
-                        status = 'NORMAL'
-                        status_color = 'green'
-                        message = 'Normal conditions'
-                    
-                    # Display alert
-                    st.write(f"**{station}**")
-                    st.metric(
-                        "Current Level",
-                        f"{current_level:.3f}m",
-                        f"Trend: {trend}"
-                    )
-                    
-                    st.markdown(
-                        f"<div style='padding: 10px; background-color: {status_color}; "
-                        f"color: black; border-radius: 5px; text-align: center;'>"
-                        f"Status: {status}</div>",
-                        unsafe_allow_html=True
-                    )
-                    
-                    st.write(f"**Message:** {message}")
-    
-    
-    def show_advanced_analytics(self, data):
+def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
         st.header("Advanced Analytics")
         
         if data is not None:
-            analytics = AdvancedAnalytics()
-            
             # Station Analysis
             st.subheader("Station Analysis")
             for station in data['location_name'].unique():
                 with st.expander(f"{station} Analysis", expanded=True):
-                    analysis = analytics.analyze_station(data, station)
+                    analysis = self.analytics.analyze_station(data, station)
                     
                     # Current Status
                     col1, col2, col3 = st.columns(3)
@@ -556,7 +375,7 @@ class FloodMonitoringDashboard:
                     
                     # Forecast
                     st.write("**24-Hour Forecast:**")
-                    forecast = analytics.get_forecast(data, station)
+                    forecast = self.analytics.get_forecast(data, station)
                     
                     # Plot forecast
                     fig = go.Figure()
@@ -574,7 +393,7 @@ class FloodMonitoringDashboard:
                     forecast_times = pd.date_range(
                         start=recent_data['river_timestamp'].iloc[-1],
                         periods=25,
-                        freq='H'
+                        freq='h'
                     )
                     fig.add_trace(go.Scatter(
                         x=forecast_times,
@@ -593,7 +412,7 @@ class FloodMonitoringDashboard:
                     
                     st.plotly_chart(fig, use_container_width=True)
                     st.write(f"Forecast Confidence: {forecast['confidence']}")
-    
+
 def main():
     # Page configuration
     st.set_page_config(
@@ -643,7 +462,7 @@ def main():
         dashboard.show_alerts(river_data)
     
     with tab8:
-        dashboard.show_advanced_analytics(river_data)  # New advanced analytics tab
+        dashboard.show_advanced_analytics(river_data)
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
