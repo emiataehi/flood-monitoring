@@ -213,6 +213,7 @@ class FloodMonitoringDashboard:
                         f"Risk: {risk_text}",
                         delta_color=delta_color
                     )
+
     def show_predictions(self, data):
         """Display predictions tab"""
         st.header("River Level Predictions")
@@ -272,8 +273,8 @@ class FloodMonitoringDashboard:
             )
             
             st.plotly_chart(fig, use_container_width=True)
-
-    def show_historical_trends(self, data):
+			
+	def show_historical_trends(self, data):
         """Display historical trends tab"""
         st.header("Historical Data Analysis")
         if data is not None:
@@ -334,15 +335,15 @@ class FloodMonitoringDashboard:
             station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
 
             st.dataframe(station_summary)
-            
-   def show_station_details(self, data):
+
+    def show_station_details(self, data):
         """Display station details tab"""
         st.header("Station Information")
         selected_station = st.selectbox(
             "Select Station", 
             list(STATION_CONFIG.keys())
         )
-    
+        
         station_info = STATION_CONFIG[selected_station]
         st.write(f"**Full Name:** {station_info['full_name']}")
         st.write(f"**River:** {station_info['river']}")
@@ -356,11 +357,11 @@ class FloodMonitoringDashboard:
             st.write(f"**River Level:** {station_data['river_level']:.3f}m")
             st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
             st.write(f"**Timestamp:** {station_data['river_timestamp']}")
-
-    def show_geospatial_view(self, data):
+			
+	def show_geospatial_view(self, data):
         """Display geospatial view tab"""
         st.header("Station Geographic Distribution")
-    
+        
         # Create station data for map
         stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
         stations_df.reset_index(inplace=True)
@@ -452,81 +453,81 @@ class FloodMonitoringDashboard:
                 st.metric("Elevation Range", f"{elevation_range}m")
             with summary_cols[2]:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
-                
-    def show_alerts(self, data):
-    """Display flood alerts tab"""
-    st.header("Flood Alerts and Warnings")
-    
-    if data is None:
-        st.warning("No data available for generating alerts")
-        return
-    
-    # Determine alert levels for each station
-    alerts = []
-    for station in data['location_name'].unique():
-        station_data = data[data['location_name'] == station]
-        current_level = station_data['river_level'].iloc[0]
-        risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
+				
+	def show_alerts(self, data):
+        """Display flood alerts tab"""
+        st.header("Flood Alerts and Warnings")
         
-        # Create alert details
-        alert_details = {
-            'station': station,
-            'current_level': current_level,
-            'risk_level': risk_level,
-            'risk_color': risk_color
-        }
-        alerts.append(alert_details)
-    
-    # Display alerts
-    if alerts:
-        for alert in alerts:
-            alert_type = "alert" if alert['risk_level'] == "MODERATE" else "error" if alert['risk_level'] == "HIGH" else "info"
+        if data is None:
+            st.warning("No data available for generating alerts")
+            return
+        
+        # Determine alert levels for each station
+        alerts = []
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
             
-            # Determine alert message
-            if alert['risk_level'] == "HIGH":
-                message = f"🚨 **CRITICAL FLOOD RISK** at {alert['station']}"
-            elif alert['risk_level'] == "MODERATE":
-                message = f"⚠️ **FLOOD WARNING** at {alert['station']}"
-            else:
-                message = f"ℹ️ **Normal Conditions** at {alert['station']}"
-            
-            st.markdown(
-                f"""
-                <div style='background-color: {alert['risk_color']}; 
-                            color: black; 
-                            padding: 15px; 
-                            border-radius: 10px; 
-                            margin-bottom: 10px;'>
-                    {message}
-                    
-                    **Current River Level:** {alert['current_level']:.3f}m
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
-    else:
-        st.success("No active flood alerts at this time.")
-    
-    # Additional context and guidance
-    st.subheader("What to Do")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        ### For Low Risk Areas
-        - Stay informed
-        - Monitor local news and weather updates
-        - Prepare an emergency kit
-        """)
-    
-    with col2:
-        st.markdown("""
-        ### For High Risk Areas
-        - Be prepared to evacuate
-        - Follow local authority instructions
-        - Have emergency contacts ready
-        - Move valuable items to higher ground
-        """)
+            # Create alert details
+            alert_details = {
+                'station': station,
+                'current_level': current_level,
+                'risk_level': risk_level,
+                'risk_color': risk_color
+            }
+            alerts.append(alert_details)
+        
+        # Display alerts
+        if alerts:
+            for alert in alerts:
+                alert_type = "alert" if alert['risk_level'] == "MODERATE" else "error" if alert['risk_level'] == "HIGH" else "info"
+                
+                # Determine alert message
+                if alert['risk_level'] == "HIGH":
+                    message = f"🚨 **CRITICAL FLOOD RISK** at {alert['station']}"
+                elif alert['risk_level'] == "MODERATE":
+                    message = f"⚠️ **FLOOD WARNING** at {alert['station']}"
+                else:
+                    message = f"ℹ️ **Normal Conditions** at {alert['station']}"
+                
+                st.markdown(
+                    f"""
+                    <div style='background-color: {alert['risk_color']}; 
+                                color: black; 
+                                padding: 15px; 
+                                border-radius: 10px; 
+                                margin-bottom: 10px;'>
+                        {message}
+                        
+                        **Current River Level:** {alert['current_level']:.3f}m
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+        else:
+            st.success("No active flood alerts at this time.")
+        
+        # Additional context and guidance
+        st.subheader("What to Do")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            ### For Low Risk Areas
+            - Stay informed
+            - Monitor local news and weather updates
+            - Prepare an emergency kit
+            """)
+        
+        with col2:
+            st.markdown("""
+            ### For High Risk Areas
+            - Be prepared to evacuate
+            - Follow local authority instructions
+            - Have emergency contacts ready
+            - Move valuable items to higher ground
+            """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
@@ -645,3 +646,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+		
