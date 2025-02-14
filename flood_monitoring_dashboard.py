@@ -433,6 +433,91 @@ class FloodMonitoringDashboard:
             with summary_cols[2]:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
+def show_alerts(self, data):
+        """Display alerts tab"""
+        st.header("Flood Alert System")
+        
+        if data is not None:
+            # Initialize alert system if not already done
+            if not hasattr(self, 'alert_system'):
+                self.alert_system = FloodAlertSystem()
+            
+            # Current Alerts Section
+            st.subheader("Current Alert Status")
+            alert_cols = st.columns(3)
+            
+            for i, station in enumerate(data['location_name'].unique()):
+                with alert_cols[i]:
+                    station_data = data[data['location_name'] == station].iloc[0]
+                    current_level = station_data['river_level']
+                    
+                    # Get trend from previous readings
+                    station_history = data[data['location_name'] == station]
+                    trend = "Stable"
+                    if len(station_history) > 1:
+                        level_change = station_history['river_level'].diff().mean()
+                        if abs(level_change) < 0.0001:
+                            trend = "Stable"
+                        elif level_change > 0:
+                            trend = "Rising"
+                        else:
+                            trend = "Falling"
+                    
+                    # Check alert conditions
+                    alert = self.alert_system.check_alert_conditions(
+                        station, current_level, trend
+                    )
+                    
+                    # Display alert status
+                    st.write(f"**{station}**")
+                    
+                    # Color-coded status indicator
+                    status_color = {
+                        'NORMAL': 'green',
+                        'WARNING': 'yellow',
+                        'ALERT': 'orange',
+                        'CRITICAL': 'red'
+                    }
+                    
+                    st.markdown(
+                        f"<div style='padding: 10px; background-color: {status_color[alert['status']]}; "
+                        f"color: black; border-radius: 5px; text-align: center;'>"
+                        f"Status: {alert['status']}</div>",
+                        unsafe_allow_html=True
+                    )
+                    
+                    st.metric(
+                        "Current Level",
+                        f"{current_level:.3f}m",
+                        f"Trend: {trend}"
+                    )
+                    st.write(f"**Message:** {alert['message']}")
+            
+            # Alert History Section
+            st.subheader("Alert History")
+            history = self.alert_system.get_alert_history()
+            
+            # Convert timestamp to local time and format
+            history['timestamp'] = pd.to_datetime(history['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Display styled history table
+            st.dataframe(
+                history,
+                column_config={
+                    "timestamp": "Time",
+                    "station": "Station",
+                    "level": st.column_config.NumberColumn(
+                        "River Level",
+                        format="%.3f m"
+                    ),
+                    "status": "Status",
+                    "message": "Message",
+                    "trend": "Trend"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
 def main():
     # Page configuration
     st.set_page_config(
@@ -445,13 +530,14 @@ def main():
     dashboard = FloodMonitoringDashboard()
 
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "Real-Time Monitoring",
         "Predictions",
         "Historical Trends",
         "Station Details",
         "Geospatial View",
-        "Watershed Analysis"  # New tab
+        "Watershed Analysis",
+        "Alerts"  # New tab
     ])
 
     # Fetch river data
@@ -475,6 +561,12 @@ def main():
         
     with tab6:
         dashboard.show_watershed_analysis(river_data)
+    
+    with tab7:
+        dashboard.show_alerts(river_data)  # New alerts tab
+
+    # Optional: Update query parameters
+    st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
     main()
