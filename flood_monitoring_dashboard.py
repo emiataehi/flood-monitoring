@@ -336,59 +336,59 @@ class FloodMonitoringDashboard:
             st.dataframe(station_summary)
             
    def show_station_details(self, data):
-    """Display station details tab"""
-    st.header("Station Information")
-    selected_station = st.selectbox(
-        "Select Station", 
-        list(STATION_CONFIG.keys())
-    )
+        """Display station details tab"""
+        st.header("Station Information")
+        selected_station = st.selectbox(
+            "Select Station", 
+            list(STATION_CONFIG.keys())
+        )
     
-    station_info = STATION_CONFIG[selected_station]
-    st.write(f"**Full Name:** {station_info['full_name']}")
-    st.write(f"**River:** {station_info['river']}")
-    st.write(f"**Description:** {station_info['description']}")
-    st.write(f"**Risk Level:** {station_info['risk_level']}")
-    st.write(f"**Coordinates:** {station_info['latitude']}, {station_info['longitude']}")
+        station_info = STATION_CONFIG[selected_station]
+        st.write(f"**Full Name:** {station_info['full_name']}")
+        st.write(f"**River:** {station_info['river']}")
+        st.write(f"**Description:** {station_info['description']}")
+        st.write(f"**Risk Level:** {station_info['risk_level']}")
+        st.write(f"**Coordinates:** {station_info['latitude']}, {station_info['longitude']}")
 
-    if data is not None:
-        st.subheader("Latest Readings")
-        station_data = data[data['location_name'] == selected_station].iloc[0]
-        st.write(f"**River Level:** {station_data['river_level']:.3f}m")
-        st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
-        st.write(f"**Timestamp:** {station_data['river_timestamp']}")
+        if data is not None:
+            st.subheader("Latest Readings")
+            station_data = data[data['location_name'] == selected_station].iloc[0]
+            st.write(f"**River Level:** {station_data['river_level']:.3f}m")
+            st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
+            st.write(f"**Timestamp:** {station_data['river_timestamp']}")
 
-def show_geospatial_view(self, data):
-    """Display geospatial view tab"""
-    st.header("Station Geographic Distribution")
+    def show_geospatial_view(self, data):
+        """Display geospatial view tab"""
+        st.header("Station Geographic Distribution")
     
-    # Create station data for map
-    stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
-    stations_df.reset_index(inplace=True)
-    stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level']
+        # Create station data for map
+        stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
+        stations_df.reset_index(inplace=True)
+        stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level']
 
-    if data is not None:
-        # Add current levels to stations
-        current_levels = data.groupby('location_name')['river_level'].first()
-        stations_df['Current Level'] = stations_df['Station'].map(current_levels)
+        if data is not None:
+            # Add current levels to stations
+            current_levels = data.groupby('location_name')['river_level'].first()
+            stations_df['Current Level'] = stations_df['Station'].map(current_levels)
 
-    # Create map
-    fig = px.scatter_mapbox(
-        stations_df, 
-        lat='Latitude', 
-        lon='Longitude',
-        hover_name='Station',
-        hover_data=['Full Name', 'River', 'Description', 'Risk Level', 'Current Level'],
-        color='Risk Level',
-        color_discrete_map={
-            'Low': 'green', 
-            'Moderate': 'yellow', 
-            'High': 'red'
-        },
-        zoom=9,
-        height=600
-    )
-    fig.update_layout(mapbox_style="open-street-map")
-    st.plotly_chart(fig, use_container_width=True)
+        # Create map
+        fig = px.scatter_mapbox(
+            stations_df, 
+            lat='Latitude', 
+            lon='Longitude',
+            hover_name='Station',
+            hover_data=['Full Name', 'River', 'Description', 'Risk Level', 'Current Level'],
+            color='Risk Level',
+            color_discrete_map={
+                'Low': 'green', 
+                'Moderate': 'yellow', 
+                'High': 'red'
+            },
+            zoom=9,
+            height=600
+        )
+        fig.update_layout(mapbox_style="open-street-map")
+        st.plotly_chart(fig, use_container_width=True)
 
     def show_watershed_analysis(self, data):
         """Display watershed analysis tab"""
