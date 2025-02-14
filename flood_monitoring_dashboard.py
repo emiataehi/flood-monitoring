@@ -435,85 +435,85 @@ class FloodMonitoringDashboard:
     
     
     def show_alerts(self, data):
-    """Display alerts tab"""
-    st.header("Flood Alert System")
-    
-    if data is not None:
-        # Current Alerts Section
-        st.subheader("Current Alert Status")
-        alert_cols = st.columns(3)
+        """Display alerts tab"""
+        st.header("Flood Alert System")
         
-        # Initialize thresholds
-        thresholds = {
-            'Rochdale': {
-                'warning': 0.168,
-                'alert': 0.169,
-                'critical': 0.170
-            },
-            'Manchester Racecourse': {
-                'warning': 0.938,
-                'alert': 0.944,
-                'critical': 0.950
-            },
-            'Bury Ground': {
-                'warning': 0.314,
-                'alert': 0.317,
-                'critical': 0.320
+        if data is not None:
+            # Current Alerts Section
+            st.subheader("Current Alert Status")
+            alert_cols = st.columns(3)
+            
+            # Initialize thresholds
+            thresholds = {
+                'Rochdale': {
+                    'warning': 0.168,
+                    'alert': 0.169,
+                    'critical': 0.170
+                },
+                'Manchester Racecourse': {
+                    'warning': 0.938,
+                    'alert': 0.944,
+                    'critical': 0.950
+                },
+                'Bury Ground': {
+                    'warning': 0.314,
+                    'alert': 0.317,
+                    'critical': 0.320
+                }
             }
-        }
-        
-        for i, station in enumerate(data['location_name'].unique()):
-            with alert_cols[i]:
-                station_data = data[data['location_name'] == station].iloc[0]
-                current_level = station_data['river_level']
-                
-                # Get trend
-                station_history = data[data['location_name'] == station]
-                trend = "Stable"
-                if len(station_history) > 1:
-                    level_change = station_history['river_level'].diff().mean()
-                    if abs(level_change) < 0.0001:
-                        trend = "Stable"
-                    elif level_change > 0:
-                        trend = "Rising"
+            
+            for i, station in enumerate(data['location_name'].unique()):
+                with alert_cols[i]:
+                    station_data = data[data['location_name'] == station].iloc[0]
+                    current_level = station_data['river_level']
+                    
+                    # Get trend
+                    station_history = data[data['location_name'] == station]
+                    trend = "Stable"
+                    if len(station_history) > 1:
+                        level_change = station_history['river_level'].diff().mean()
+                        if abs(level_change) < 0.0001:
+                            trend = "Stable"
+                        elif level_change > 0:
+                            trend = "Rising"
+                        else:
+                            trend = "Falling"
+                    
+                    # Determine alert status
+                    station_thresholds = thresholds[station]
+                    if current_level > station_thresholds['critical']:
+                        status = 'CRITICAL'
+                        status_color = 'red'
+                        message = 'Immediate action required'
+                    elif current_level > station_thresholds['alert']:
+                        status = 'ALERT'
+                        status_color = 'orange'
+                        message = 'Prepare for potential flooding'
+                    elif current_level > station_thresholds['warning']:
+                        status = 'WARNING'
+                        status_color = 'yellow'
+                        message = 'Monitor conditions closely'
                     else:
-                        trend = "Falling"
-                
-                # Determine alert status
-                station_thresholds = thresholds[station]
-                if current_level > station_thresholds['critical']:
-                    status = 'CRITICAL'
-                    status_color = 'red'
-                    message = 'Immediate action required'
-                elif current_level > station_thresholds['alert']:
-                    status = 'ALERT'
-                    status_color = 'orange'
-                    message = 'Prepare for potential flooding'
-                elif current_level > station_thresholds['warning']:
-                    status = 'WARNING'
-                    status_color = 'yellow'
-                    message = 'Monitor conditions closely'
-                else:
-                    status = 'NORMAL'
-                    status_color = 'green'
-                    message = 'Normal conditions'
-                
-                # Display alert
-                st.write(f"**{station}**")
-                st.metric(
-                    "Current Level",
-                    f"{current_level:.3f}m",
-                    f"Trend: {trend}"
-                )
-                
-                st.markdown(
-                    f"<div style='padding: 10px; background-color: {status_color}; "
-                    f"color: black; border-radius: 5px; text-align: center;'>"
-                    f"Status: {status}</div>",
-                    unsafe_allow_html=True
-                )
-                
-                st.write(f"**Message:** {message}")
+                        status = 'NORMAL'
+                        status_color = 'green'
+                        message = 'Normal conditions'
+                    
+                    # Display alert
+                    st.write(f"**{station}**")
+                    st.metric(
+                        "Current Level",
+                        f"{current_level:.3f}m",
+                        f"Trend: {trend}"
+                    )
+                    
+                    st.markdown(
+                        f"<div style='padding: 10px; background-color: {status_color}; "
+                        f"color: black; border-radius: 5px; text-align: center;'>"
+                        f"Status: {status}</div>",
+                        unsafe_allow_html=True
+                    )
+                    
+                    st.write(f"**Message:** {message}")
     
 def main():
     # Page configuration
