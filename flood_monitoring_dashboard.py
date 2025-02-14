@@ -336,6 +336,28 @@ class FloodMonitoringDashboard:
             station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
 
             st.dataframe(station_summary)
+            
+    def show_station_details(self, data):
+        """Display station details tab"""
+        st.header("Station Information")
+        selected_station = st.selectbox(
+            "Select Station", 
+            list(STATION_CONFIG.keys())
+        )
+        
+        station_info = STATION_CONFIG[selected_station]
+        st.write(f"**Full Name:** {station_info['full_name']}")
+        st.write(f"**River:** {station_info['river']}")
+        st.write(f"**Description:** {station_info['description']}")
+        st.write(f"**Risk Level:** {station_info['risk_level']}")
+        st.write(f"**Coordinates:** {station_info['latitude']}, {station_info['longitude']}")
+
+        if data is not None:
+            st.subheader("Latest Readings")
+            station_data = data[data['location_name'] == selected_station].iloc[0]
+            st.write(f"**River Level:** {station_data['river_level']:.3f}m")
+            st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
+            st.write(f"**Timestamp:** {station_data['river_timestamp']}")
 
 def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
