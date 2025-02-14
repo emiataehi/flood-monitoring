@@ -335,6 +335,7 @@ class FloodMonitoringDashboard:
             station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
 
             st.dataframe(station_summary)
+            
     def show_station_details(self, data):
         """Display station details tab"""
         st.header("Station Information")
