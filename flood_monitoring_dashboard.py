@@ -515,6 +515,85 @@ class FloodMonitoringDashboard:
                     
                     st.write(f"**Message:** {message}")
     
+    
+    def show_advanced_analytics(self, data):
+        """Display advanced analytics tab"""
+        st.header("Advanced Analytics")
+        
+        if data is not None:
+            analytics = AdvancedAnalytics()
+            
+            # Station Analysis
+            st.subheader("Station Analysis")
+            for station in data['location_name'].unique():
+                with st.expander(f"{station} Analysis", expanded=True):
+                    analysis = analytics.analyze_station(data, station)
+                    
+                    # Current Status
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric(
+                            "Current Level",
+                            f"{analysis['current_level']:.3f}m",
+                            f"{analysis['deviation']:.3f}m vs baseline"
+                        )
+                    with col2:
+                        st.metric(
+                            "Trend",
+                            analysis['trend'],
+                            f"{analysis['trend_rate']:.6f}m/hour"
+                        )
+                    with col3:
+                        st.metric(
+                            "Average Level",
+                            f"{analysis['average_level']:.3f}m"
+                        )
+                    
+                    # Daily Pattern
+                    st.write("**Daily Pattern:**")
+                    st.write(f"Peak levels typically at: {analysis['peak_hour']}:00")
+                    st.write(f"Lowest levels typically at: {analysis['low_hour']}:00")
+                    
+                    # Forecast
+                    st.write("**24-Hour Forecast:**")
+                    forecast = analytics.get_forecast(data, station)
+                    
+                    # Plot forecast
+                    fig = go.Figure()
+                    
+                    # Historical data
+                    recent_data = data[data['location_name'] == station].tail(24)
+                    fig.add_trace(go.Scatter(
+                        x=recent_data['river_timestamp'],
+                        y=recent_data['river_level'],
+                        name='Historical',
+                        mode='lines+markers'
+                    ))
+                    
+                    # Forecast data
+                    forecast_times = pd.date_range(
+                        start=recent_data['river_timestamp'].iloc[-1],
+                        periods=25,
+                        freq='H'
+                    )
+                    fig.add_trace(go.Scatter(
+                        x=forecast_times,
+                        y=[recent_data['river_level'].iloc[-1]] + forecast['levels'],
+                        name='Forecast',
+                        mode='lines',
+                        line=dict(dash='dash')
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"{station} - 24 Hour Forecast",
+                        xaxis_title="Time",
+                        yaxis_title="River Level (m)",
+                        height=300
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.write(f"Forecast Confidence: {forecast['confidence']}")
+    
 def main():
     # Page configuration
     st.set_page_config(
@@ -527,14 +606,15 @@ def main():
     dashboard = FloodMonitoringDashboard()
 
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "Real-Time Monitoring",
         "Predictions",
         "Historical Trends",
         "Station Details",
         "Geospatial View",
         "Watershed Analysis",
-        "Alerts"  # New tab
+        "Alerts",
+        "Advanced Analytics"  # New tab
     ])
 
     # Fetch river data
@@ -560,7 +640,10 @@ def main():
         dashboard.show_watershed_analysis(river_data)
     
     with tab7:
-        dashboard.show_alerts(river_data)  # New alerts tab
+        dashboard.show_alerts(river_data)
+    
+    with tab8:
+        dashboard.show_advanced_analytics(river_data)  # New advanced analytics tab
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
