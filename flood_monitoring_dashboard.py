@@ -275,7 +275,7 @@ class FloodMonitoringDashboard:
             st.plotly_chart(fig, use_container_width=True)
 			
 	def show_historical_trends(self, data):
-        """Display historical trends tab"""
+         """Display historical trends tab"""
         st.header("Historical Data Analysis")
         if data is not None:
             # Basic statistics overview
