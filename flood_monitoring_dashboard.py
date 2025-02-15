@@ -809,6 +809,102 @@ class FloodMonitoringDashboard:
                     file_name=f"flood_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                     mime='text/plain'
                 )
+    def generate_report(self, data):
+        """Enhance existing report generation"""
+        st.header("Flood Monitoring Report")
+        
+        if data is None:
+            st.warning("No data available for report generation")
+            return
+
+        # Add timestamp
+        st.markdown(f"*Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+
+        # Add report type selection
+        report_type = st.selectbox(
+            "Select Report Type",
+            ["Current Status", "Daily Summary", "Weekly Analysis"]
+        )
+
+        if report_type == "Current Status":
+            self._show_current_status_report(data)
+        elif report_type == "Daily Summary":
+            self._show_daily_summary_report(data)
+        else:
+            self._show_weekly_analysis_report(data)
+
+        # Enhanced export options
+        st.subheader("Export Options")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📊 Export Raw Data"):
+                csv = data.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name=f"flood_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime='text/csv'
+                )
+        
+        with col2:
+            if st.button("📝 Export Summary Report"):
+                summary = self._generate_summary_text(data)
+                st.download_button(
+                    label="Download Summary",
+                    data=summary,
+                    file_name=f"flood_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime='text/plain'
+                )
+        
+        with col3:
+            if st.button("📈 Export Statistics"):
+                stats = self._generate_statistics_csv(data)
+                st.download_button(
+                    label="Download Statistics",
+                    data=stats,
+                    file_name=f"flood_statistics_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime='text/csv'
+                )
+
+    def _generate_summary_text(self, data):
+        """Generate text summary report"""
+        summary = f"""FLOOD MONITORING SUMMARY REPORT
+    Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    {'-'*50}
+
+    STATION STATUS:
+    """
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, _ = self.predictor.get_risk_level(current_level, station)
+            
+            summary += f"\n{station}:"
+            summary += f"\n  Current Level: {current_level:.3f}m"
+            summary += f"\n  Risk Level: {risk_level}"
+            summary += f"\n  Status: {'Above Threshold' if risk_level in ['MODERATE', 'HIGH'] else 'Normal'}\n"
+        
+        return summary
+
+    def _generate_statistics_csv(self, data):
+        """Generate statistical analysis CSV"""
+        stats_list = []
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            stats_list.append({
+                'Station': station,
+                'Average Level': station_data['river_level'].mean(),
+                'Maximum Level': station_data['river_level'].max(),
+                'Minimum Level': station_data['river_level'].min(),
+                'Standard Deviation': station_data['river_level'].std(),
+                'Number of Readings': len(station_data)
+            })
+        
+        stats_df = pd.DataFrame(stats_list)
+        return stats_df.to_csv(index=False)
+
+
 
 def main():
     # Page configuration
