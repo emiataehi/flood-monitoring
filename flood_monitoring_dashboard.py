@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from notification_system import NotificationSystem
 from alert_config import AlertConfiguration
 from alert_history import AlertHistoryTracker
+from alert_system import AlertSystem
 
 # Global Station Configuration
 STATION_CONFIG = {
@@ -469,86 +470,44 @@ class FloodMonitoringDashboard:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
     def show_alerts(self, data):
-        """Display flood alerts tab with enhanced visualization and notifications"""
+        """Display flood alerts tab with enhanced alert system"""
         st.header("Flood Alerts and Warnings")
-    
+
         if data is None:
             st.warning("No data available for generating alerts")
             return
-    
-        # Create alert container for better styling
-        alert_container = st.container()
+
+        # Create tabs for current alerts and history
+        current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
         
-        with alert_container:
-            # Determine alert levels for each station
-            alerts = []
+        with current_tab:
+            # Process alerts for each station
             for station in data['location_name'].unique():
                 station_data = data[data['location_name'] == station].copy()
                 current_level = station_data['river_level'].iloc[0]
                 risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
-                
-                # Get station thresholds
-                thresholds = self.predictor.thresholds[station]
-                
-                # Calculate percentage of critical level
-                critical_percentage = (current_level / thresholds['critical']) * 100
-                
-                # Get trend information
                 trend_direction, trend_rate, confidence = self.predictor.analyze_trend(station_data)
                 
-                # Create alert details
-                alert_details = {
-                    'station': station,
-                    'current_level': current_level,
-                    'risk_level': risk_level,
-                    'risk_color': risk_color,
-                    'trend': trend_direction,
-                    'trend_rate': trend_rate,
-                    'critical_percentage': critical_percentage,
-                    'thresholds': thresholds,
-                    'confidence': confidence
-                }
-                alerts.append(alert_details)
+                # Process alert through alert system
+                alert_triggered, alert_type = self.alert_system.process_alert(
+                    station=station,
+                    river_level=current_level
+                )
                 
-                # Handle notifications for high-risk situations
-                if risk_level == "HIGH":
-                    emergency_email = "emergency@example.com"
-                    email_subject = f"CRITICAL ALERT: {station}"
-                    email_message = (f"High flood risk detected at {station}.\n"
-                                   f"Current level: {current_level:.3f}m\n"
-                                   f"Trend: {trend_direction} ({trend_rate:.6f}m/hour)")
-                    
-                    try:
-                        self.notification_system.send_email(
-                            emergency_email, 
-                            email_subject, 
-                            email_message
-                        )
-                    except Exception as e:
-                        st.warning(f"Could not send notification: {str(e)}")
-            
-            # Sort alerts by risk level (HIGH -> MODERATE -> LOW)
-            risk_order = {"HIGH": 0, "MODERATE": 1, "LOW": 2}
-            alerts.sort(key=lambda x: (risk_order[x['risk_level']], -x['current_level']))
-            
-            # Display alerts with enhanced styling
-            for alert in alerts:
-                # Determine background color based on risk level
-                bg_color = {
-                    "HIGH": "#ff4b4b",
-                    "MODERATE": "#faa53d",
-                    "LOW": "#39b54a"
-                }.get(alert['risk_level'], "#39b54a")
-                
-                # Create alert message
+                # Determine alert styling
                 icon = {
                     "HIGH": "🚨",
                     "MODERATE": "⚠️",
                     "LOW": "ℹ️"
-                }.get(alert['risk_level'], "ℹ️")
+                }.get(risk_level, "ℹ️")
                 
-                message = f"{icon} **{alert['risk_level']} ALERT** - {alert['station']}"
+                bg_color = {
+                    "HIGH": "#ff4b4b",
+                    "MODERATE": "#faa53d",
+                    "LOW": "#39b54a"
+                }.get(risk_level, "#39b54a")
                 
+                # Display alert with enhanced styling
                 st.markdown(
                     f"""
                     <div style='
@@ -559,70 +518,70 @@ class FloodMonitoringDashboard:
                         margin-bottom: 15px;
                         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     '>
-                        <h3 style='margin:0; color: white;'>{message}</h3>
+                        <h3 style='margin:0; color: white;'>{icon} {station}</h3>
                         <p style='margin: 10px 0;'>
-                            Current Level: <strong>{alert['current_level']:.3f}m</strong> 
-                            ({alert['critical_percentage']:.1f}% of critical level)
+                            Current Level: <strong>{current_level:.3f}m</strong>
                         </p>
                         <p style='margin: 5px 0;'>
-                            Trend: <strong>{alert['trend']}</strong> 
-                            ({alert['trend_rate']:.6f}m/hour)
+                            Risk Level: <strong>{risk_level}</strong>
                         </p>
                         <p style='margin: 5px 0;'>
-                            Warning Threshold: {alert['thresholds']['warning']:.3f}m | 
-                            Alert Threshold: {alert['thresholds']['alert']:.3f}m | 
-                            Critical Threshold: {alert['thresholds']['critical']:.3f}m
+                            Trend: <strong>{trend_direction}</strong> 
+                            ({trend_rate:.6f}m/hour)
                         </p>
                     </div>
                     """, 
                     unsafe_allow_html=True
                 )
+
+        with history_tab:
+            st.subheader("Recent Alert History")
+            recent_alerts = self.alert_system.get_recent_alerts(days=7)
             
-            if not alerts:
-                st.success("No active flood alerts at this time.")
-            
-            # Display guidance section
-            st.subheader("Emergency Response Guidance")
-            
-            guidance_col1, guidance_col2 = st.columns(2)
-            
-            with guidance_col1:
-                st.markdown("""
-                ### Immediate Actions
-                - Monitor local weather updates
-                - Keep emergency contact numbers handy
-                - Prepare an emergency kit
-                - Check on vulnerable neighbors
-                - Keep important documents in a waterproof container
-                """)
-            
-            with guidance_col2:
-                st.markdown("""
-                ### If Evacuation Needed
-                - Follow official evacuation routes
-                - Turn off utilities at main switches
-                - Avoid walking or driving through flood waters
-                - Move valuable items to higher ground
-                - Keep pets with you
-                """)
-            
-            # Add emergency contacts
-            st.subheader("Emergency Contacts")
-            contacts_col1, contacts_col2 = st.columns(2)
-            
-            with contacts_col1:
-                st.markdown("""
-                - **Emergency Services**: 999
-                - **Flood Line**: 0345 988 1188
-                - **Environment Agency**: 0800 80 70 60
-                """)
-            
-            with contacts_col2:
-                st.markdown("""
-                - **Local Council**: [Find your local council](https://www.gov.uk/find-local-council)
-                - **Weather Updates**: [Met Office](https://www.metoffice.gov.uk/)
-                - **Traffic Updates**: [Traffic England](https://www.trafficengland.com/)
-                """)
+            if not recent_alerts.empty:
+                # Convert to more readable format
+                display_df = recent_alerts[['timestamp', 'station', 'alert_type', 'river_level']]
+                display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+                display_df['river_level'] = display_df['river_level'].round(3)
+                
+                st.dataframe(
+                    display_df,
+                    column_config={
+                        "timestamp": "Time",
+                        "station": "Station",
+                        "alert_type": "Alert Level",
+                        "river_level": "River Level (m)"
+                    },
+                    hide_index=True
+                )
+                
+                # Show alert summary
+                st.subheader("Alert Summary")
+                summary = self.alert_system.history.get_alert_summary()
+                st.dataframe(summary)
+            else:
+                st.info("No alerts in the past 7 days")
+
+        # Display guidance section
+        st.subheader("Emergency Response Guidance")
+        guidance_col1, guidance_col2 = st.columns(2)
+        
+        with guidance_col1:
+            st.markdown("""
+            ### For Low Risk Areas
+            - Stay informed
+            - Monitor local news and weather updates
+            - Prepare an emergency kit
+            """)
+        
+        with guidance_col2:
+            st.markdown("""
+            ### For High Risk Areas
+            - Be prepared to evacuate
+            - Follow local authority instructions
+            - Have emergency contacts ready
+            - Move valuable items to higher ground
+            """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
