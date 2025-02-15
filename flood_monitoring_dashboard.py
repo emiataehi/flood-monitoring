@@ -512,7 +512,7 @@ class FloodMonitoringDashboard:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
     def show_alerts(self, data):
-        """Display flood alerts tab"""
+        """Display flood alerts tab with active alert recording"""
         st.header("Flood Alerts and Warnings")
 
         if data is None:
@@ -523,12 +523,18 @@ class FloodMonitoringDashboard:
         current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
         
         with current_tab:
+            alerts_recorded = False  # Track if we record any alerts
+            
             for station in data['location_name'].unique():
                 station_data = data[data['location_name'] == station]
                 current_level = station_data['river_level'].iloc[0]
                 risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                 
-                # Determine status icon
+                # Record alert in history
+                self.alert_system.process_alert(station, current_level)
+                alerts_recorded = True
+                
+                # Determine status icon and color
                 if risk_level == "HIGH":
                     icon = "🚨"
                     card_color = "#ff4b4b"
@@ -552,22 +558,44 @@ class FloodMonitoringDashboard:
                         <h3 style='margin:0;'>{icon} {station}</h3>
                         <p style='margin: 10px 0;'>Current Level: {current_level:.3f}m</p>
                         <p style='margin: 5px 0;'>Risk Level: {risk_level}</p>
+                        <p style='margin: 5px 0;'>Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
         
         with history_tab:
-            try:
-                recent_alerts = self.alert_system.get_recent_alerts(days=7)
-                if not recent_alerts.empty:
-                    st.subheader("Recent Alerts")
-                    st.dataframe(recent_alerts)
+            # Get recent alerts
+            recent_alerts = self.alert_system.get_recent_alerts(days=7)
+            
+            if not recent_alerts.empty:
+                st.subheader("Recent Alerts")
+                
+                # Format the dataframe for display
+                display_df = recent_alerts.copy()
+                display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                display_df['river_level'] = display_df['river_level'].round(3)
+                
+                st.dataframe(
+                    display_df,
+                    column_config={
+                        "timestamp": "Time",
+                        "station": "Station",
+                        "river_level": "River Level (m)",
+                        "risk_level": "Risk Level"
+                    },
+                    hide_index=True
+                )
+                
+                # Show summary
+                st.subheader("Alert Summary")
+                summary = recent_alerts.groupby(['station', 'risk_level']).size().unstack(fill_value=0)
+                st.dataframe(summary)
+            else:
+                if alerts_recorded:
+                    st.info("Alerts have been recorded. Refresh the page to see the history.")
                 else:
-                    st.info("No recent alerts recorded")
-            except Exception as e:
-                st.info("Alert history system is being initialized.")
-                st.error(f"Error: {str(e)}")
+                    st.info("No alerts have been recorded yet.")
             
             # Emergency Guidance
             st.subheader("What to Do")
