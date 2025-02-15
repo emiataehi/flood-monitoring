@@ -512,110 +512,123 @@ class FloodMonitoringDashboard:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
     def show_alerts(self, data):
-        """Display flood alerts tab with active alert recording"""
-        st.header("Flood Alerts and Warnings")
+        """Display flood alerts tab with enhanced real-time indicators"""
+        st.header("Real-Time Flood Alerts")
 
         if data is None:
             st.warning("No data available for generating alerts")
             return
 
-        # Create tabs for current alerts and history
-        current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
-        
-        with current_tab:
-            alerts_recorded = False  # Track if we record any alerts
+        # Display current time
+        st.markdown(f"*Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+
+        # Create alert dashboard
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, _ = self.predictor.get_risk_level(current_level, station)
+            thresholds = self.predictor.thresholds[station]
             
-            for station in data['location_name'].unique():
-                station_data = data[data['location_name'] == station]
-                current_level = station_data['river_level'].iloc[0]
-                risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
-                
-                # Record alert in history
-                self.alert_system.process_alert(station, current_level)
-                alerts_recorded = True
-                
-                # Determine status icon and color
-                if risk_level == "HIGH":
-                    icon = "🚨"
-                    card_color = "#ff4b4b"
-                elif risk_level == "MODERATE":
-                    icon = "⚠️"
-                    card_color = "#faa53d"
-                else:
-                    icon = "ℹ️"
-                    card_color = "#39b54a"
-                
-                # Display alert card
-                st.markdown(
-                    f"""
-                    <div style='
-                        background-color: {card_color};
-                        padding: 15px;
-                        border-radius: 10px;
-                        margin-bottom: 10px;
-                        color: white;
-                    '>
-                        <h3 style='margin:0;'>{icon} {station}</h3>
-                        <p style='margin: 10px 0;'>Current Level: {current_level:.3f}m</p>
-                        <p style='margin: 5px 0;'>Risk Level: {risk_level}</p>
-                        <p style='margin: 5px 0;'>Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            # Calculate risk percentage
+            critical_level = thresholds['critical']
+            risk_percentage = (current_level / critical_level) * 100
+            
+            # Create styled alert box
+            alert_color = {
+                "HIGH": "#FF4B4B",
+                "MODERATE": "#FFA500",
+                "LOW": "#2E7D32"
+            }.get(risk_level, "#2E7D32")
+            
+            st.markdown(
+                f"""
+                <div style='
+                    background-color: {alert_color}15;
+                    border: 2px solid {alert_color};
+                    border-radius: 10px;
+                    padding: 15px;
+                    margin-bottom: 20px;
+                '>
+                    <h3 style='color: {alert_color}; margin: 0;'>
+                        {['ℹ️', '⚠️', '🚨'][['LOW', 'MODERATE', 'HIGH'].index(risk_level)]} 
+                        {station}
+                    </h3>
+                    <div style='margin-top: 10px;'>
+                        <strong>Current Level:</strong> {current_level:.3f}m
+                        <br/>
+                        <strong>Risk Level:</strong> {risk_level}
+                        <br/>
+                        <strong>Critical Threshold:</strong> {critical_level:.3f}m
+                        <br/>
+                        <strong>Risk Status:</strong> {risk_percentage:.1f}% of critical level
                     </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # Display summary metrics
+        st.subheader("Alert Summary")
+        col1, col2, col3 = st.columns(3)
         
-        with history_tab:
-            # Get recent alerts
-            recent_alerts = self.alert_system.get_recent_alerts(days=7)
+        with col1:
+            high_risk_count = sum(1 for station in data['location_name'].unique() 
+                                 if self.predictor.get_risk_level(
+                                     data[data['location_name'] == station]['river_level'].iloc[0], 
+                                     station)[0] == "HIGH")
+            st.metric("High Risk Stations", high_risk_count, 
+                     delta="Immediate Action Required" if high_risk_count > 0 else "Normal")
+
+        with col2:
+            moderate_risk_count = sum(1 for station in data['location_name'].unique() 
+                                     if self.predictor.get_risk_level(
+                                         data[data['location_name'] == station]['river_level'].iloc[0], 
+                                         station)[0] == "MODERATE")
+            st.metric("Moderate Risk Stations", moderate_risk_count, 
+                     delta="Monitor Closely" if moderate_risk_count > 0 else "Normal")
+
+        with col3:
+            low_risk_count = sum(1 for station in data['location_name'].unique() 
+                                if self.predictor.get_risk_level(
+                                    data[data['location_name'] == station]['river_level'].iloc[0], 
+                                    station)[0] == "LOW")
+            st.metric("Low Risk Stations", low_risk_count, 
+                     delta="Normal Conditions" if low_risk_count == len(data['location_name'].unique()) else "Some Risks Present")
+
+        # Emergency Response Section
+        st.subheader("Emergency Response Guidelines")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            ### For Low Risk Areas
+            1. Monitor local weather updates
+            2. Keep emergency contacts handy
+            3. Review flood preparedness plan
+            4. Check emergency supplies
+            5. Stay informed through official channels
+            """)
+        
+        with col2:
+            st.markdown("""
+            ### For High Risk Areas
+            1. Prepare for immediate evacuation
+            2. Move valuables to higher ground
+            3. Follow official instructions
+            4. Charge all communication devices
+            5. Gather emergency supplies
+            """)
+
+        # Add emergency contacts for high-risk situations
+        if high_risk_count > 0:
+            st.error("""
+            ### 🚨 Emergency Contacts
+            - **Emergency Services:** 999
+            - **Flood Line:** 0345 988 1188
+            - **Environment Agency:** 0800 80 70 60
             
-            if not recent_alerts.empty:
-                st.subheader("Recent Alerts")
-                
-                # Format the dataframe for display
-                display_df = recent_alerts.copy()
-                display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                display_df['river_level'] = display_df['river_level'].round(3)
-                
-                st.dataframe(
-                    display_df,
-                    column_config={
-                        "timestamp": "Time",
-                        "station": "Station",
-                        "river_level": "River Level (m)",
-                        "risk_level": "Risk Level"
-                    },
-                    hide_index=True
-                )
-                
-                # Show summary
-                st.subheader("Alert Summary")
-                summary = recent_alerts.groupby(['station', 'risk_level']).size().unstack(fill_value=0)
-                st.dataframe(summary)
-            else:
-                if alerts_recorded:
-                    st.info("Alerts have been recorded. Refresh the page to see the history.")
-                else:
-                    st.info("No alerts have been recorded yet.")
-            
-            # Emergency Guidance
-            st.subheader("What to Do")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("""
-                ### For Low Risk Areas
-                - Stay informed
-                - Monitor local news
-                - Check flood warnings
-                """)
-            
-            with col2:
-                st.markdown("""
-                ### For High Risk Areas
-                - Prepare for evacuation
-                - Follow official guidance
-                - Move valuables up high
-                """)
+            Keep these numbers readily available and monitor official guidance.
+            """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
@@ -684,6 +697,118 @@ class FloodMonitoringDashboard:
                     
                     st.plotly_chart(fig, use_container_width=True)
                     st.write(f"Forecast Confidence: {forecast['confidence']}")
+                    
+    def generate_report(self, data):
+        """Generate comprehensive flood monitoring report"""
+        st.header("Flood Monitoring Report")
+        
+        if data is None:
+            st.warning("No data available for report generation")
+            return
+
+        # Add timestamp
+        st.markdown(f"*Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+
+        # Current Status Overview
+        st.subheader("Current Status Overview")
+        status_df = []
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, _ = self.predictor.get_risk_level(current_level, station)
+            
+            status_df.append({
+                'Station': station,
+                'Current Level': f"{current_level:.3f}m",
+                'Risk Level': risk_level,
+                'Status': 'Above Threshold' if risk_level in ['MODERATE', 'HIGH'] else 'Normal'
+            })
+        
+        st.dataframe(pd.DataFrame(status_df), hide_index=True)
+
+        # Trend Analysis
+        st.subheader("24-Hour Trend Analysis")
+        fig = go.Figure()
+        
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station].head(24)
+            fig.add_trace(go.Scatter(
+                x=station_data['river_timestamp'],
+                y=station_data['river_level'],
+                name=station,
+                mode='lines+markers'
+            ))
+        
+        fig.update_layout(
+            title="River Levels - Last 24 Hours",
+            xaxis_title="Time",
+            yaxis_title="River Level (m)",
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Risk Assessment Summary
+        st.subheader("Risk Assessment Summary")
+        risk_cols = st.columns(3)
+        with risk_cols[0]:
+            high_risk = sum(1 for s in status_df if s['Risk Level'] == 'HIGH')
+            st.metric("High Risk Stations", high_risk, 
+                     delta="Critical" if high_risk > 0 else "Normal")
+        
+        with risk_cols[1]:
+            moderate_risk = sum(1 for s in status_df if s['Risk Level'] == 'MODERATE')
+            st.metric("Moderate Risk Stations", moderate_risk,
+                     delta="Warning" if moderate_risk > 0 else "Normal")
+        
+        with risk_cols[2]:
+            low_risk = sum(1 for s in status_df if s['Risk Level'] == 'LOW')
+            st.metric("Low Risk Stations", low_risk,
+                     delta="Normal" if low_risk == len(status_df) else "Some Risks Present")
+
+        # Recent Alerts
+        st.subheader("Recent Alert History")
+        recent_alerts = self.alert_system.get_recent_alerts(days=1)
+        if not recent_alerts.empty:
+            recent_alerts['timestamp'] = pd.to_datetime(recent_alerts['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+            st.dataframe(recent_alerts)
+        else:
+            st.info("No alerts in the past 24 hours")
+
+        # Export Options
+        st.subheader("Export Options")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📊 Export Data as CSV"):
+                csv = data.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name=f"flood_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime='text/csv'
+                )
+        
+        with col2:
+            if st.button("📄 Export Summary Report"):
+                # Create summary report
+                report = f"""Flood Monitoring Summary Report
+    Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+    Current Status:
+    {"="*50}"""
+                for station in status_df:
+                    report += f"\n{station['Station']}:"
+                    report += f"\n- Current Level: {station['Current Level']}"
+                    report += f"\n- Risk Level: {station['Risk Level']}"
+                    report += f"\n- Status: {station['Status']}\n"
+                
+                st.download_button(
+                    label="Download Report",
+                    data=report,
+                    file_name=f"flood_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime='text/plain'
+                )
 
 def main():
     # Page configuration
@@ -697,7 +822,7 @@ def main():
     dashboard = FloodMonitoringDashboard()
 
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "Real-Time Monitoring",
         "Predictions",
         "Historical Trends",
@@ -706,6 +831,7 @@ def main():
         "Watershed Analysis",
         "Alerts",
         "Advanced Analytics"
+        "Reports"
     ])
 
     # Fetch river data
@@ -728,6 +854,8 @@ def main():
         dashboard.show_alerts(river_data)
     with tab8:
         dashboard.show_advanced_analytics(river_data)
+    with tab9:
+        dashboard.generate_report(river_data)
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
