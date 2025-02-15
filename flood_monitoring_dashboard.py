@@ -936,13 +936,18 @@ class FloodMonitoringDashboard:
             # Use precise thresholds for risk determination
             thresholds = self.predictor.thresholds[station]
             
-            if current_level > thresholds['critical']:
+            # Precise risk categorization
+            if current_level >= thresholds['critical']:
                 risk_level = "HIGH RISK"
                 risk_color = "red"
                 icon = "🚨"
-            elif current_level > thresholds['alert']:
+            elif current_level >= thresholds['alert']:
                 risk_level = "MODERATE RISK"
                 risk_color = "orange"
+                icon = "⚠️"
+            elif current_level >= thresholds['warning']:
+                risk_level = "WARNING"
+                risk_color = "yellow"
                 icon = "⚠️"
             else:
                 risk_level = "LOW RISK"
@@ -1007,15 +1012,23 @@ class FloodMonitoringDashboard:
         st.subheader("Emergency Guidance")
         
         # Determine overall system risk
-        overall_risks = [
-            self.predictor.get_risk_level(
-                data[data['location_name'] == station]['river_level'].iloc[0], 
-                station
-            )[0] for station in data['location_name'].unique()
-        ]
+        risk_levels = []
+        for station in data['location_name'].unique():
+            current_level = data[data['location_name'] == station]['river_level'].iloc[0]
+            thresholds = self.predictor.thresholds[station]
+            
+            if current_level >= thresholds['critical']:
+                risk_levels.append("HIGH")
+            elif current_level >= thresholds['alert']:
+                risk_levels.append("MODERATE")
+            elif current_level >= thresholds['warning']:
+                risk_levels.append("WARNING")
+            else:
+                risk_levels.append("LOW")
         
-        has_high_risk = "HIGH" in overall_risks
-        has_moderate_risk = "MODERATE" in overall_risks
+        has_high_risk = "HIGH" in risk_levels
+        has_moderate_risk = "MODERATE" in risk_levels
+        has_warning = "WARNING" in risk_levels
         
         col1, col2 = st.columns(2)
         
@@ -1049,6 +1062,12 @@ class FloodMonitoringDashboard:
             ### ⚠️ FLOOD WARNING
             Moderate risk conditions present. 
             Stay alert and prepared.
+            """)
+        elif has_warning:
+            st.warning("""
+            ### ⚠️ WARNING LEVEL
+            Potential flood risk detected.
+            Monitor conditions closely.
             """)
         
         # Emergency Contacts
