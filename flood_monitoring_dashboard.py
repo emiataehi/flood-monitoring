@@ -526,7 +526,7 @@ class FloodMonitoringDashboard:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
     def show_alerts(self, data):
-        """Display flood alerts tab with enhanced alert logging"""
+        """Display flood alerts tab"""
         st.header("Flood Alerts and Warnings")
 
         if data is None:
@@ -537,20 +537,16 @@ class FloodMonitoringDashboard:
         current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
         
         with current_tab:
-            alerts_recorded = False
             for station in data['location_name'].unique():
                 station_data = data[data['location_name'] == station]
                 current_level = station_data['river_level'].iloc[0]
                 risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                 
-                # Log alert in history
-                self.alert_system.history.log_alert(
+                # Process alert through alert system
+                alert_triggered, alert_type = self.alert_system.process_alert(
                     station=station,
-                    river_level=current_level,
-                    alert_type=risk_level,
-                    notification_sent=True
+                    river_level=current_level
                 )
-                alerts_recorded = True
                 
                 # Display alert with appropriate styling
                 if risk_level == "HIGH":
@@ -567,30 +563,41 @@ class FloodMonitoringDashboard:
                 )
         
         with history_tab:
+            # Get recent alerts using the alert system
             recent_alerts = self.alert_system.get_recent_alerts(days=7)
-            if not recent_alerts.empty:
+            if isinstance(recent_alerts, pd.DataFrame) and not recent_alerts.empty:
                 st.subheader("Recent Alerts (Last 7 Days)")
                 
                 # Format timestamps for display
                 display_df = recent_alerts.copy()
-                display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
-                display_df['river_level'] = display_df['river_level'].round(3)
+                if 'timestamp' in display_df.columns:
+                    display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+                if 'river_level' in display_df.columns:
+                    display_df['river_level'] = display_df['river_level'].round(3)
                 
-                st.dataframe(
-                    display_df[['timestamp', 'station', 'alert_type', 'river_level']],
-                    column_config={
-                        "timestamp": "Time",
-                        "station": "Station",
-                        "alert_type": "Alert Level",
-                        "river_level": "River Level (m)"
-                    },
-                    hide_index=True
-                )
+                st.dataframe(display_df, hide_index=True)
             else:
-                if alerts_recorded:
-                    st.info("New alerts have been recorded. Refresh to see updates.")
-                else:
-                    st.info("No alerts in the past 7 days")
+                st.info("No alerts in the past 7 days")
+
+            # Emergency guidance
+            st.subheader("What to Do")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                ### For Low Risk Areas
+                - Stay informed
+                - Monitor local news
+                - Check flood warnings
+                """)
+            
+            with col2:
+                st.markdown("""
+                ### For High Risk Areas
+                - Prepare for evacuation
+                - Follow official guidance
+                - Move valuables up high
+                """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
