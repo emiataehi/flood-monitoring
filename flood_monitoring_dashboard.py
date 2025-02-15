@@ -183,41 +183,44 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
 
-    def fetch_river_data(self, days_back=30):
-        """Fetch river monitoring data with fallback"""
+    def fetch_river_data(self, days_back=90):  # Changed from 30 to 90 days
+        """Fetch river monitoring data"""
         try:
-            # Check if Supabase client is initialized
             if self.supabase is None:
                 st.warning("Database connection not available. Using simulated data.")
-                return self._generate_sample_data()
+                return self._generate_sample_data(days_back)
 
             end_date = datetime.now(pytz.UTC)
             start_date = end_date - timedelta(days=days_back)
 
-            response = self.supabase.table('river_data')\
-                .select('*')\
-                .gte('river_timestamp', start_date.isoformat())\
-                .lte('river_timestamp', end_date.isoformat())\
-                .order('river_timestamp', desc=True)\
-                .execute()
+            try:
+                response = self.supabase.table('river_data')\
+                    .select('*')\
+                    .gte('river_timestamp', start_date.isoformat())\
+                    .lte('river_timestamp', end_date.isoformat())\
+                    .order('river_timestamp', desc=True)\
+                    .execute()
 
-            if response.data:
+                if not response.data:
+                    st.warning(f"No data found for the last {days_back} days. Using simulated data.")
+                    return self._generate_sample_data(days_back)
+
                 df = pd.DataFrame(response.data)
                 df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
                 return df
-            else:
-                st.warning("No data found in database. Using simulated data.")
-                return self._generate_sample_data()
+
+            except Exception as e:
+                st.error(f"Database error: {e}. Using simulated data.")
+                return self._generate_sample_data(days_back)
 
         except Exception as e:
             st.error(f"Data retrieval error: {e}")
-            st.info("Falling back to simulated data for demonstration.")
-            return self._generate_sample_data()
+            return self._generate_sample_data(days_back)
 
-    def _generate_sample_data(self):
+    def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data"""
         current_time = datetime.now(pytz.UTC)
-        dates = pd.date_range(end=current_time, periods=48, freq='H')
+        dates = pd.date_range(end=current_time, periods=days_back*24, freq='H')  # Hourly data for X days
         
         stations = ['Rochdale', 'Manchester Racecourse', 'Bury Ground']
         base_levels = {
@@ -231,14 +234,30 @@ class FloodMonitoringDashboard:
             base_level = base_levels[station]
             for date in dates:
                 # Add some random variation to base levels
-                variation = np.random.normal(0, 0.002)
-                level = max(0, base_level + variation)
+                # Create more realistic variations based on time patterns
+                hour_of_day = date.hour
+                day_of_week = date.dayofweek
+                
+                # Daily pattern: slightly higher levels during daytime
+                daily_factor = 1.0 + 0.05 * np.sin(hour_of_day * np.pi / 12)
+                
+                # Weekly pattern: slightly higher on weekends
+                weekly_factor = 1.0 + 0.02 * (day_of_week >= 5)
+                
+                # Random variation
+                random_variation = np.random.normal(0, 0.002)
+                
+                # Combine all factors
+                level = max(0, base_level * daily_factor * weekly_factor + random_variation)
+                
+                # Add occasional rainfall
+                rainfall = np.random.exponential(0.1) if np.random.random() < 0.3 else 0.0
                 
                 data.append({
                     'river_timestamp': date,
                     'location_name': station,
                     'river_level': level,
-                    'rainfall': np.random.uniform(0, 0.1),
+                    'rainfall': rainfall,
                     'rainfall_timestamp': date
                 })
         
