@@ -939,6 +939,11 @@ class FloodMonitoringDashboard:
             # Use precise thresholds for risk determination
             thresholds = self.predictor.thresholds[station]
             
+            # Calculate proximity to thresholds
+            distance_to_warning = thresholds['warning'] - current_level
+            total_threshold_range = thresholds['critical'] - thresholds['warning']
+            proximity_percentage = max(0, 1 - (distance_to_warning / total_threshold_range)) * 100
+            
             # Precise risk categorization with proximity to thresholds
             if current_level >= thresholds['critical']:
                 risk_level = "HIGH RISK"
@@ -952,7 +957,7 @@ class FloodMonitoringDashboard:
                 risk_level = "MODERATE RISK"
                 risk_color = "orange"
                 icon = "⚠️"
-            elif current_level >= thresholds['warning'] * 0.9:  # Within 10% of warning threshold
+            elif proximity_percentage > 50:  # Closer to warning threshold
                 risk_level = "CAUTION"
                 risk_color = "yellow"
                 icon = "⚠️"
@@ -985,8 +990,9 @@ class FloodMonitoringDashboard:
                     <p style='color: {risk_color}; font-weight: bold;'>{risk_level}</p>
                 </div>
                 <div style='margin-top: 10px; font-size: 0.8em; color: #666;'>
-                    <p><strong>Proximity to Thresholds:</strong></p>
+                    <p><strong>Proximity Details:</strong></p>
                     <p>Warning: {thresholds['warning']:.3f}m | Alert: {thresholds['alert']:.3f}m | Critical: {thresholds['critical']:.3f}m</p>
+                    <p>Proximity to Warning: {proximity_percentage:.1f}%</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1078,6 +1084,8 @@ class FloodMonitoringDashboard:
         - **Flood Helpline:** 0345 988 1188
         - **Local Council:** Contact your local authority
         """)
+    
+    
 def main():
     # Page configuration
     st.set_page_config(
