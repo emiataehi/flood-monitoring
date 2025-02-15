@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from notification_system import NotificationSystem
 from alert_config import AlertConfiguration
 from alert_history import AlertHistoryTracker
-
+from alert_system import AlertSystem  
 
 # Global Station Configuration
 STATION_CONFIG = {
@@ -170,6 +170,9 @@ class FloodMonitoringDashboard:
             self.predictor = FloodPredictionSystem()
             self.watershed = WatershedAnalysis()
             self.analytics = AdvancedAnalytics()
+            
+            # Initialize alert system components
+            self.alert_system = AlertSystem()  # Add this line
             self.notification_system = NotificationSystem()
             self.alert_config = AlertConfiguration()
             self.alert_history = AlertHistoryTracker()
@@ -488,12 +491,18 @@ class FloodMonitoringDashboard:
                 risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                 trend_direction, trend_rate, confidence = self.predictor.analyze_trend(station_data)
                 
-                # Process alert through alert system
-                alert_triggered, alert_type = self.alert_system.process_alert(
-                    station=station,
-                    river_level=current_level
-                )
+                try:
+                    # Process alert through alert system
+                    alert_triggered, alert_type = self.alert_system.process_alert(
+                        station=station,
+                        river_level=current_level
+                    )
+                except Exception as e:
+                    st.warning(f"Alert processing error for {station}: {str(e)}")
+                    alert_triggered, alert_type = False, risk_level
                 
+                # Rest of your alert display code remains the same
+                    
                 # Determine alert styling
                 icon = {
                     "HIGH": "🚨",
