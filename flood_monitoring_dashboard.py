@@ -9,6 +9,10 @@ import plotly.express as px
 import plotly.graph_objs as go
 from prediction_utils import FloodPredictor
 from watershed_utils import WatershedAnalysis
+from dotenv import load_dotenv
+from notification_system import NotificationSystem
+from alert_config import AlertConfiguration
+from alert_history import AlertHistoryTracke
 
 # Global Station Configuration
 STATION_CONFIG = {
@@ -596,6 +600,35 @@ class FloodMonitoringDashboard:
                     
                     st.plotly_chart(fig, use_container_width=True)
                     st.write(f"Forecast Confidence: {forecast['confidence']}")
+
+class FloodMonitoringDashboard:
+    def __init__(self):
+        # Existing initialization
+        # Add notification system
+        self.notification_system = NotificationSystem()
+
+    def show_alerts(self, data):
+        """Display flood alerts tab"""
+        # Existing method
+        
+        # After displaying alerts, send email for critical alerts
+        for alert in alerts:
+            if alert['risk_level'] == "HIGH":
+                # Send email to predefined emergency contacts
+                email_subject = f"CRITICAL FLOOD ALERT - {alert['station']}"
+                email_message = f"""
+                URGENT: Critical Flood Risk Detected
+
+                Station: {alert['station']}
+                Current River Level: {alert['current_level']:.3f}m
+                Risk Level: HIGH
+
+                Immediate action required. Please follow local emergency protocols.
+                """
+                
+                # Example email contact (replace with actual contact)
+                emergency_email = "emergency_contact@example.com"
+                self.notification_system.send_email(emergency_email, email_subject, email_message)         )
 
 def main():
     # Page configuration
