@@ -15,6 +15,7 @@ from notification_system import NotificationSystem
 from alert_config import AlertConfiguration
 from alert_history import AlertHistoryTracker
 from alert_system import AlertSystem  
+ 
 
 # Global Station Configuration
 STATION_CONFIG = {
@@ -511,70 +512,82 @@ class FloodMonitoringDashboard:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
     def show_alerts(self, data):
-        """Display flood alerts tab with enhanced alert system"""
+        """Display flood alerts tab"""
         st.header("Flood Alerts and Warnings")
 
         if data is None:
             st.warning("No data available for generating alerts")
             return
 
-        try:
-            # Create tabs for current alerts and history
-            current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
-            
-            with current_tab:
-                for station in data['location_name'].unique():
-                    station_data = data[data['location_name'] == station].copy()
-                    current_level = station_data['river_level'].iloc[0]
-                    risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
-                    
-                    # Determine alert styling
-                    icon = {
-                        "HIGH": "🚨",
-                        "MODERATE": "⚠️",
-                        "LOW": "ℹ️"
-                    }.get(risk_level, "ℹ️")
-                    
-                    bg_color = {
-                        "HIGH": "#ff4b4b",
-                        "MODERATE": "#faa53d",
-                        "LOW": "#39b54a"
-                    }.get(risk_level, "#39b54a")
-                    
-                    # Display alert card
-                    st.markdown(
-                        f"""
-                        <div style='
-                            background-color: {bg_color}; 
-                            color: white; 
-                            padding: 20px; 
-                            border-radius: 10px; 
-                            margin-bottom: 15px;
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                        '>
-                            <h3 style='margin:0; color: white;'>{icon} {station}</h3>
-                            <p style='margin: 10px 0;'>
-                                Current Level: <strong>{current_level:.3f}m</strong>
-                            </p>
-                            <p style='margin: 5px 0;'>
-                                Risk Level: <strong>{risk_level}</strong>
-                            </p>
-                        </div>
-                        """, 
-                        unsafe_allow_html=True
-                    )
-
-            with history_tab:
-                st.info("Alert history tracking is being initialized. Historical data will be available soon.")
-
-        except Exception as e:
-            st.error(f"Error displaying alerts: {str(e)}")
-            # Fallback to basic alert display
+        # Create tabs for current alerts and history
+        current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
+        
+        with current_tab:
             for station in data['location_name'].unique():
                 station_data = data[data['location_name'] == station]
                 current_level = station_data['river_level'].iloc[0]
-                risk_level, _ = self.predictor.get_risk_level(current_level, station)
-                st.warning(f"{station}: Current Level {current_level:.3f}m - Risk Level: {risk_level}")
+                risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
+                
+                # Determine status icon
+                if risk_level == "HIGH":
+                    icon = "🚨"
+                    card_color = "#ff4b4b"
+                elif risk_level == "MODERATE":
+                    icon = "⚠️"
+                    card_color = "#faa53d"
+                else:
+                    icon = "ℹ️"
+                    card_color = "#39b54a"
+                
+                # Display alert card
+                st.markdown(
+                    f"""
+                    <div style='
+                        background-color: {card_color};
+                        padding: 15px;
+                        border-radius: 10px;
+                        margin-bottom: 10px;
+                        color: white;
+                    '>
+                        <h3 style='margin:0;'>{icon} {station}</h3>
+                        <p style='margin: 10px 0;'>Current Level: {current_level:.3f}m</p>
+                        <p style='margin: 5px 0;'>Risk Level: {risk_level}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        
+        with history_tab:
+            try:
+                recent_alerts = self.alert_system.get_recent_alerts(days=7)
+                if not recent_alerts.empty:
+                    st.subheader("Recent Alerts")
+                    st.dataframe(recent_alerts)
+                else:
+                    st.info("No recent alerts recorded")
+            except Exception as e:
+                st.info("Alert history system is being initialized.")
+                st.error(f"Error: {str(e)}")
+            
+            # Emergency Guidance
+            st.subheader("What to Do")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                ### For Low Risk Areas
+                - Stay informed
+                - Monitor local news
+                - Check flood warnings
+                """)
+            
+            with col2:
+                st.markdown("""
+                ### For High Risk Areas
+                - Prepare for evacuation
+                - Follow official guidance
+                - Move valuables up high
+                """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""

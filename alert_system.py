@@ -1,48 +1,45 @@
 # alert_system.py
-from alert_config import AlertConfiguration
-from notification_system import NotificationSystem
-from alert_history import AlertHistoryTracker
+import streamlit as st
 import pandas as pd
+from datetime import datetime
 
 class AlertSystem:
     def __init__(self):
-        """Initialize the complete alert system"""
-        self.config = AlertConfiguration()
-        self.notifier = NotificationSystem()
-        self.history = AlertHistoryTracker()
+        """Initialize alert system"""
+        self.alert_history = pd.DataFrame(columns=[
+            'timestamp',
+            'station',
+            'river_level',
+            'risk_level'
+        ])
     
     def process_alert(self, station, river_level):
-        """Process and generate alerts based on current river levels"""
-        try:
-            # Get station configuration
-            station_config = self.config.get_alert_configuration(station)
-            
-            # Determine alert type
-            if river_level >= station_config['critical_level']:
-                alert_type = 'CRITICAL'
-            elif river_level >= station_config['alert_level']:
-                alert_type = 'ALERT'
-            elif river_level >= station_config['warning_level']:
-                alert_type = 'WARNING'
-            else:
-                alert_type = None
-            
-            if alert_type:
-                # Log the alert
-                self.history.log_alert(
-                    station=station,
-                    river_level=river_level,
-                    alert_type=alert_type,
-                    notification_sent=True
-                )
-                return True, alert_type
-            
-            return False, None
-            
-        except Exception as e:
-            st.error(f"Error processing alert: {e}")
-            return False, None
+        """Process new alert"""
+        # Determine risk level based on thresholds
+        if river_level > 0.9:
+            risk_level = "HIGH"
+        elif river_level > 0.5:
+            risk_level = "MODERATE"
+        else:
+            risk_level = "LOW"
+        
+        # Log alert
+        new_alert = pd.DataFrame({
+            'timestamp': [datetime.now()],
+            'station': [station],
+            'river_level': [river_level],
+            'risk_level': [risk_level]
+        })
+        
+        self.alert_history = pd.concat([self.alert_history, new_alert], ignore_index=True)
+        return True, risk_level
     
     def get_recent_alerts(self, days=7):
-        """Get recent alert history"""
-        return self.history.get_recent_alerts(days)
+        """Get recent alerts"""
+        if self.alert_history.empty:
+            return pd.DataFrame()
+            
+        cutoff_date = pd.Timestamp.now() - pd.Timedelta(days=days)
+        return self.alert_history[
+            self.alert_history['timestamp'] > cutoff_date
+        ].sort_values('timestamp', ascending=False)
