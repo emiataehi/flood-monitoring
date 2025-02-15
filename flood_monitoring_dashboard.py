@@ -12,7 +12,7 @@ from watershed_utils import WatershedAnalysis
 from dotenv import load_dotenv
 from notification_system import NotificationSystem
 from alert_config import AlertConfiguration
-from alert_history import AlertHistoryTracke
+from alert_history import AlertHistoryTracker
 
 # Global Station Configuration
 STATION_CONFIG = {
@@ -604,31 +604,43 @@ class FloodMonitoringDashboard:
 class FloodMonitoringDashboard:
     def __init__(self):
         # Existing initialization
-        # Add notification system
         self.notification_system = NotificationSystem()
 
     def show_alerts(self, data):
-        """Display flood alerts tab"""
-        # Existing method
+    """Enhanced alert display with notifications"""
+    st.header("Flood Alerts and Warnings")
+    
+    if data is None:
+        st.warning("No data available for generating alerts")
+        return
+    
+    alerts = []
+    for station in data['location_name'].unique():
+        station_data = data[data['location_name'] == station]
+        current_level = station_data['river_level'].iloc[0]
+        risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
         
-        # After displaying alerts, send email for critical alerts
-        for alert in alerts:
-            if alert['risk_level'] == "HIGH":
-                # Send email to predefined emergency contacts
-                email_subject = f"CRITICAL FLOOD ALERT - {alert['station']}"
-                email_message = f"""
-                URGENT: Critical Flood Risk Detected
-
-                Station: {alert['station']}
-                Current River Level: {alert['current_level']:.3f}m
-                Risk Level: HIGH
-
-                Immediate action required. Please follow local emergency protocols.
-                """
-                
-                # Example email contact (replace with actual contact)
-                emergency_email = "emergency_contact@example.com"
-                self.notification_system.send_email(emergency_email, email_subject, email_message)         )
+        alert_details = {
+            'station': station,
+            'current_level': current_level,
+            'risk_level': risk_level,
+            'risk_color': risk_color
+        }
+        alerts.append(alert_details)
+    
+    # Notification Logic
+    for alert in alerts:
+        if alert['risk_level'] == "HIGH":
+            # Simulate notification
+            emergency_email = "emergency@example.com"
+            email_subject = f"CRITICAL ALERT: {alert['station']}"
+            email_message = f"High flood risk detected. Current level: {alert['current_level']:.3f}m"
+            
+            self.notification_system.send_email(
+                emergency_email, 
+                email_subject, 
+                email_message
+            )  # Removed extra parenthesis
 
 def main():
     # Page configuration
