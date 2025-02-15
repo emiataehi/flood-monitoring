@@ -915,6 +915,96 @@ class FloodMonitoringDashboard:
                     mime='text/plain'
                 )
 
+    def show_mobile_dashboard(self, data):
+        """
+        Render mobile-specific dashboard view
+        
+        Args:
+            data (pd.DataFrame): Flood monitoring data
+        """
+        st.header("📱 Mobile Quick View")
+        
+        if data is None:
+            st.warning("No data available")
+            return
+        
+        # Quick status overview
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
+            
+            # Mobile-friendly card
+            st.markdown(f"""
+            <div style='
+                background-color: {risk_color}15; 
+                border: 2px solid {risk_color}; 
+                border-radius: 10px; 
+                padding: 15px; 
+                margin-bottom: 10px;
+            '>
+                <h3 style='margin: 0; color: {risk_color};'>
+                    {['ℹ️', '⚠️', '🚨'][['LOW', 'MODERATE', 'HIGH'].index(risk_level)]} 
+                    {station}
+                </h3>
+                <div style='display: flex; justify-content: space-between; margin-top: 10px;'>
+                    <p><strong>Current Level:</strong></p>
+                    <p>{current_level:.3f}m</p>
+                </div>
+                <div style='display: flex; justify-content: space-between;'>
+                    <p><strong>Risk Level:</strong></p>
+                    <p style='color: {risk_color}; font-weight: bold;'>{risk_level}</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Mobile-friendly trend visualization
+        st.subheader("River Level Trends")
+        fig = go.Figure()
+        
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station].head(24)
+            fig.add_trace(go.Scatter(
+                x=station_data['river_timestamp'],
+                y=station_data['river_level'],
+                name=station,
+                mode='lines+markers'
+            ))
+        
+        fig.update_layout(
+            height=350,  # Smaller height for mobile
+            margin=dict(l=40, r=20, t=40, b=40),  # Tight margins
+            legend=dict(
+                orientation="h",  # Horizontal legend
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Emergency Guidance
+        st.subheader("Emergency Guidance")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            ### Low Risk Areas
+            - Stay informed
+            - Monitor local news
+            - Prepare emergency kit
+            """)
+        
+        with col2:
+            st.markdown("""
+            ### High Risk Areas
+            - Prepare for evacuation
+            - Move to higher ground
+            - Follow official guidance
+            """)
+
 def main():
     # Page configuration
     st.set_page_config(
@@ -927,7 +1017,7 @@ def main():
     dashboard = FloodMonitoringDashboard()
 
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
         "Real-Time Monitoring",
         "Predictions",
         "Historical Trends",
@@ -936,7 +1026,8 @@ def main():
         "Watershed Analysis",
         "Alerts",
         "Advanced Analytics",
-        "Reports"  # New tab
+        "Reports",
+        "Mobile View"  # New tab
     ])
 
     # Fetch river data
@@ -961,6 +1052,8 @@ def main():
         dashboard.show_advanced_analytics(river_data)
     with tab9:
         dashboard.generate_report(river_data)
+    with tab10:
+    dashboard.show_mobile_dashboard(river_data)    
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
