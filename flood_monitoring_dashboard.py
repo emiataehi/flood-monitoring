@@ -607,40 +607,40 @@ class FloodMonitoringDashboard:
         self.notification_system = NotificationSystem()
 
     def show_alerts(self, data):
-    """Enhanced alert display with notifications"""
-    st.header("Flood Alerts and Warnings")
+        """Enhanced alert display with notifications"""
+        st.header("Flood Alerts and Warnings")
     
-    if data is None:
-        st.warning("No data available for generating alerts")
-        return
+        if data is None:
+            st.warning("No data available for generating alerts")
+            return
     
-    alerts = []
-    for station in data['location_name'].unique():
-        station_data = data[data['location_name'] == station]
-        current_level = station_data['river_level'].iloc[0]
-        risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
+        alerts = []
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
         
-        alert_details = {
-            'station': station,
-            'current_level': current_level,
-            'risk_level': risk_level,
-            'risk_color': risk_color
-        }
-        alerts.append(alert_details)
+            alert_details = {
+                'station': station,
+                'current_level': current_level,
+                'risk_level': risk_level,
+                'risk_color': risk_color
+            }
+            alerts.append(alert_details)
     
-    # Notification Logic
-    for alert in alerts:
-        if alert['risk_level'] == "HIGH":
-            # Simulate notification
-            emergency_email = "emergency@example.com"
-            email_subject = f"CRITICAL ALERT: {alert['station']}"
-            email_message = f"High flood risk detected. Current level: {alert['current_level']:.3f}m"
+        # Notification Logic
+        for alert in alerts:
+            if alert['risk_level'] == "HIGH":
+                # Simulate notification
+                emergency_email = "emergency@example.com"
+                email_subject = f"CRITICAL ALERT: {alert['station']}"
+                email_message = f"High flood risk detected. Current level: {alert['current_level']:.3f}m"
             
-            self.notification_system.send_email(
-                emergency_email, 
-                email_subject, 
-                email_message
-            )  # Removed extra parenthesis
+                self.notification_system.send_email(
+                    emergency_email, 
+                    email_subject, 
+                    email_message
+                )       
 
 def main():
     # Page configuration
