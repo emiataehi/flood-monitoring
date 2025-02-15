@@ -344,24 +344,39 @@ class FloodMonitoringDashboard:
             st.plotly_chart(fig, use_container_width=True)
 	
     def show_historical_trends(self, data):
-        """Display historical trends tab with dynamic date range"""
+        """Display historical trends tab with proper date range"""
         st.header("Historical Data Analysis")
+        
         if data is not None:
+            # Force data regeneration for 90 days
+            data = self._generate_sample_data(days_back=90)
+            
             # Date range selection
             st.subheader("Select Date Range")
+            min_date = data['river_timestamp'].min().date()
+            max_date = data['river_timestamp'].max().date()
+            
             col1, col2 = st.columns(2)
             with col1:
-                min_date = data['river_timestamp'].min().date()
-                max_date = data['river_timestamp'].max().date()
-                start_date = st.date_input("Start Date", min_date, min_value=min_date, max_value=max_date)
+                start_date = st.date_input(
+                    "Start Date",
+                    value=max_date - timedelta(days=7),
+                    min_value=min_date,
+                    max_value=max_date
+                )
             with col2:
-                end_date = st.date_input("End Date", max_date, min_value=min_date, max_value=max_date)
+                end_date = st.date_input(
+                    "End Date",
+                    value=max_date,
+                    min_value=min_date,
+                    max_value=max_date
+                )
 
-            # Filter data based on selected date range
+            # Filter data based on selected dates
             mask = (data['river_timestamp'].dt.date >= start_date) & (data['river_timestamp'].dt.date <= end_date)
             filtered_data = data[mask]
 
-            # Basic statistics overview
+            # Display data overview
             st.subheader("Data Overview")
             col1, col2, col3 = st.columns(3)
             
@@ -369,11 +384,11 @@ class FloodMonitoringDashboard:
                 st.metric("Total Records", len(filtered_data))
             
             with col2:
-                st.metric("Date Range", 
-                         f"{filtered_data['river_timestamp'].min().date()} to {filtered_data['river_timestamp'].max().date()}")
+                date_range = f"{filtered_data['river_timestamp'].min().date()} to {filtered_data['river_timestamp'].max().date()}"
+                st.metric("Date Range", date_range)
             
             with col3:
-                st.metric("Stations", len(filtered_data['location_name'].unique()))
+                st.metric("Stations", ", ".join(filtered_data['location_name'].unique()))
 
             # Trend visualization
             st.subheader("Trends Visualization")
@@ -397,7 +412,7 @@ class FloodMonitoringDashboard:
             
             st.plotly_chart(fig, use_container_width=True)
 
-            # Station summary with filtered data
+            # Station summary
             st.subheader("Station-wise Summary")
             station_summary = filtered_data.groupby('location_name').agg({
                 'river_level': ['mean', 'min', 'max', 'count'],
@@ -405,19 +420,19 @@ class FloodMonitoringDashboard:
                 'river_timestamp': ['min', 'max']
             })
 
-        station_summary.columns = [
-            'Avg River Level', 'Min River Level', 'Max River Level', 'River Level Readings',
-            'Avg Rainfall', 'Min Rainfall', 'Max Rainfall', 'Rainfall Readings',
-            'First Timestamp', 'Last Timestamp'
-        ]
+            station_summary.columns = [
+                'Avg River Level', 'Min River Level', 'Max River Level', 'River Level Readings',
+                'Avg Rainfall', 'Min Rainfall', 'Max Rainfall', 'Rainfall Readings',
+                'First Timestamp', 'Last Timestamp'
+            ]
 
-        numeric_cols = [
-            'Avg River Level', 'Min River Level', 'Max River Level',
-            'Avg Rainfall', 'Min Rainfall', 'Max Rainfall'
-        ]
-        station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
+            numeric_cols = [
+                'Avg River Level', 'Min River Level', 'Max River Level',
+                'Avg Rainfall', 'Min Rainfall', 'Max Rainfall'
+            ]
+            station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
 
-        st.dataframe(station_summary)
+            st.dataframe(station_summary)
 
     def show_station_details(self, data):
         """Display station details tab"""
