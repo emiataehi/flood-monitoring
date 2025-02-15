@@ -915,7 +915,7 @@ class FloodMonitoringDashboard:
                     mime='text/plain'
                 )
 
-   def show_mobile_dashboard(self, data):
+    def show_mobile_dashboard(self, data):
         """
         Render mobile-specific dashboard view
         
