@@ -830,8 +830,8 @@ def main():
         "Geospatial View",
         "Watershed Analysis",
         "Alerts",
-        "Advanced Analytics"
-        "Reports"
+        "Advanced Analytics",
+        "Reports"  # New tab
     ])
 
     # Fetch river data
