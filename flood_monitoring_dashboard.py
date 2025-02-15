@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from notification_system import NotificationSystem
 from alert_config import AlertConfiguration
 from alert_history import AlertHistoryTracker
-from alert_system import AlertSystem
+
 
 # Global Station Configuration
 STATION_CONFIG = {
