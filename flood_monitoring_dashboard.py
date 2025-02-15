@@ -934,6 +934,17 @@ class FloodMonitoringDashboard:
             current_level = station_data['river_level'].iloc[0]
             risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
             
+            # Determine icon and risk text
+            if risk_level == "HIGH":
+                icon = "🚨"
+                risk_text = "HIGH RISK"
+            elif risk_level == "MODERATE":
+                icon = "⚠️"
+                risk_text = "MODERATE RISK"
+            else:
+                icon = "ℹ️"
+                risk_text = "LOW RISK"
+            
             # Mobile-friendly card
             st.markdown(f"""
             <div style='
@@ -944,8 +955,7 @@ class FloodMonitoringDashboard:
                 margin-bottom: 10px;
             '>
                 <h3 style='margin: 0; color: {risk_color};'>
-                    {['ℹ️', '⚠️', '🚨'][['LOW', 'MODERATE', 'HIGH'].index(risk_level)]} 
-                    {station}
+                    {icon} {station}
                 </h3>
                 <div style='display: flex; justify-content: space-between; margin-top: 10px;'>
                     <p><strong>Current Level:</strong></p>
@@ -953,12 +963,12 @@ class FloodMonitoringDashboard:
                 </div>
                 <div style='display: flex; justify-content: space-between;'>
                     <p><strong>Risk Level:</strong></p>
-                    <p style='color: {risk_color}; font-weight: bold;'>{risk_level}</p>
+                    <p style='color: {risk_color}; font-weight: bold;'>{risk_text}</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
-        # Mobile-friendly trend visualization
+        # River Level Trends
         st.subheader("River Level Trends")
         fig = go.Figure()
         
@@ -985,7 +995,7 @@ class FloodMonitoringDashboard:
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Emergency Guidance
+        # Emergency Guidance Section
         st.subheader("Emergency Guidance")
         col1, col2 = st.columns(2)
         
@@ -995,68 +1005,25 @@ class FloodMonitoringDashboard:
             - Stay informed
             - Monitor local news
             - Prepare emergency kit
+            - Check local flood warnings
             """)
         
         with col2:
             st.markdown("""
             ### High Risk Areas
-            - Prepare for evacuation
+            - Prepare for immediate evacuation
             - Move to higher ground
             - Follow official guidance
+            - Protect critical belongings
             """)
-
-def main():
-    # Page configuration
-    st.set_page_config(
-        page_title="Flood Monitoring Dashboard",
-        layout="wide"
-    )
-    st.title("Comprehensive Flood Monitoring Dashboard")
-
-    # Initialize dashboard
-    dashboard = FloodMonitoringDashboard()
-
-    # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "Real-Time Monitoring",
-        "Predictions",
-        "Historical Trends",
-        "Station Details",
-        "Geospatial View",
-        "Watershed Analysis",
-        "Alerts",
-        "Advanced Analytics",
-        "Reports",
-        "Mobile View"  # New tab
-    ])
-
-    # Fetch river data
-    river_data = dashboard.fetch_river_data()
-
-    # Display tabs
-    with tab1:
-        dashboard.show_real_time_monitoring(river_data)
-    with tab2:
-        dashboard.show_predictions(river_data)
-    with tab3:
-        dashboard.show_historical_trends(river_data)
-    with tab4:
-        dashboard.show_station_details(river_data)
-    with tab5:
-        dashboard.show_geospatial_view(river_data)
-    with tab6:
-        dashboard.show_watershed_analysis(river_data)
-    with tab7:
-        dashboard.show_alerts(river_data)
-    with tab8:
-        dashboard.show_advanced_analytics(river_data)
-    with tab9:
-        dashboard.generate_report(river_data)
-    with tab10:
-        dashboard.show_mobile_dashboard(river_data)    
-
-    # Optional: Update query parameters
-    st.query_params.update(refresh=True)
+        
+        # Additional Emergency Information
+        st.markdown("""
+        ### Emergency Contacts
+        - **Emergency Services:** 999
+        - **Flood Helpline:** 0345 988 1188
+        - **Local Council:** Contact your local authority
+        """)
 
 if __name__ == '__main__':
     main()	
