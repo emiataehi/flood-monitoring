@@ -1053,7 +1053,7 @@ def main():
     with tab9:
         dashboard.generate_report(river_data)
     with tab10:
-    dashboard.show_mobile_dashboard(river_data)    
+        dashboard.show_mobile_dashboard(river_data)    
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
