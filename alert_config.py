@@ -1,4 +1,5 @@
-# alert_config.py
+
+c# alert_config.py
 class AlertConfiguration:
     def __init__(self):
         # Predefined alert thresholds with customization options
@@ -27,14 +28,29 @@ class AlertConfiguration:
         }
     
     def update_threshold(self, station, threshold_type, new_value):
-        """Allow dynamic threshold updates"""
+        """Update alert threshold for a specific station"""
         if station in self.thresholds and threshold_type in ['warning_level', 'alert_level', 'critical_level']:
             self.thresholds[station][threshold_type] = new_value
+            return True
+        return False
     
     def add_custom_contact(self, station, contact_info):
-        """Add custom contact for specific station alerts"""
-        self.thresholds[station]['custom_contacts'].append(contact_info)
+        """Add a custom contact for alerts"""
+        if station in self.thresholds:
+            contact = {
+                'name': contact_info.get('name', ''),
+                'email': contact_info.get('email', ''),
+                'phone': contact_info.get('phone', '')
+            }
+            self.thresholds[station]['custom_contacts'].append(contact)
+            return True
+        return False
     
     def get_alert_configuration(self, station):
-        """Retrieve current alert configuration for a station"""
+        """Get current alert configuration for a station"""
         return self.thresholds.get(station, {})
+
+    def get_notification_channels(self, station):
+        """Get configured notification channels for a station"""
+        station_config = self.thresholds.get(station, {})
+        return station_config.get('notification_channels', ['dashboard'])
