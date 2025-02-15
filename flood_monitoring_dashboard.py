@@ -915,7 +915,7 @@ class FloodMonitoringDashboard:
                     mime='text/plain'
                 )
 
-    def show_mobile_dashboard(self, data):
+   def show_mobile_dashboard(self, data):
         """
         Render mobile-specific dashboard view
         
@@ -932,18 +932,22 @@ class FloodMonitoringDashboard:
         for station in data['location_name'].unique():
             station_data = data[data['location_name'] == station]
             current_level = station_data['river_level'].iloc[0]
-            risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
             
-            # Determine icon and risk text
-            if risk_level == "HIGH":
+            # Use precise thresholds for risk determination
+            thresholds = self.predictor.thresholds[station]
+            
+            if current_level > thresholds['critical']:
+                risk_level = "HIGH RISK"
+                risk_color = "red"
                 icon = "🚨"
-                risk_text = "HIGH RISK"
-            elif risk_level == "MODERATE":
+            elif current_level > thresholds['alert']:
+                risk_level = "MODERATE RISK"
+                risk_color = "orange"
                 icon = "⚠️"
-                risk_text = "MODERATE RISK"
             else:
+                risk_level = "LOW RISK"
+                risk_color = "green"
                 icon = "ℹ️"
-                risk_text = "LOW RISK"
             
             # Mobile-friendly card
             st.markdown(f"""
@@ -963,7 +967,11 @@ class FloodMonitoringDashboard:
                 </div>
                 <div style='display: flex; justify-content: space-between;'>
                     <p><strong>Risk Level:</strong></p>
-                    <p style='color: {risk_color}; font-weight: bold;'>{risk_text}</p>
+                    <p style='color: {risk_color}; font-weight: bold;'>{risk_level}</p>
+                </div>
+                <div style='margin-top: 10px; font-size: 0.8em; color: #666;'>
+                    <p><strong>Thresholds:</strong></p>
+                    <p>Warning: {thresholds['warning']:.3f}m | Alert: {thresholds['alert']:.3f}m | Critical: {thresholds['critical']:.3f}m</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -997,6 +1005,18 @@ class FloodMonitoringDashboard:
         
         # Emergency Guidance Section
         st.subheader("Emergency Guidance")
+        
+        # Determine overall system risk
+        overall_risks = [
+            self.predictor.get_risk_level(
+                data[data['location_name'] == station]['river_level'].iloc[0], 
+                station
+            )[0] for station in data['location_name'].unique()
+        ]
+        
+        has_high_risk = "HIGH" in overall_risks
+        has_moderate_risk = "MODERATE" in overall_risks
+        
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1017,7 +1037,21 @@ class FloodMonitoringDashboard:
             - Protect critical belongings
             """)
         
-        # Additional Emergency Information
+        # Conditional Emergency Information
+        if has_high_risk:
+            st.error("""
+            ### 🚨 CRITICAL ALERT
+            High-risk conditions detected. 
+            Immediate action may be required.
+            """)
+        elif has_moderate_risk:
+            st.warning("""
+            ### ⚠️ FLOOD WARNING
+            Moderate risk conditions present. 
+            Stay alert and prepared.
+            """)
+        
+        # Emergency Contacts
         st.markdown("""
         ### Emergency Contacts
         - **Emergency Services:** 999
