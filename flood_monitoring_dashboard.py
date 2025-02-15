@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np 
 import matplotlib.pyplot as plt
 from supabase import create_client
 import os
@@ -182,8 +183,13 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=30):
-        """Fetch river monitoring data"""
+        """Fetch river monitoring data with fallback"""
         try:
+            # Check if Supabase client is initialized
+            if self.supabase is None:
+                st.warning("Database connection not available. Using simulated data.")
+                return self._generate_sample_data()
+
             end_date = datetime.now(pytz.UTC)
             start_date = end_date - timedelta(days=days_back)
 
@@ -199,12 +205,44 @@ class FloodMonitoringDashboard:
                 df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
                 return df
             else:
-                st.warning("No recent river data found")
-                return None
+                st.warning("No data found in database. Using simulated data.")
+                return self._generate_sample_data()
 
         except Exception as e:
             st.error(f"Data retrieval error: {e}")
-            return None
+            st.info("Falling back to simulated data for demonstration.")
+            return self._generate_sample_data()
+
+    def _generate_sample_data(self):
+        """Generate sample river monitoring data"""
+        current_time = datetime.now(pytz.UTC)
+        dates = pd.date_range(end=current_time, periods=48, freq='H')
+        
+        stations = ['Rochdale', 'Manchester Racecourse', 'Bury Ground']
+        base_levels = {
+            'Rochdale': 0.173,
+            'Manchester Racecourse': 0.927,
+            'Bury Ground': 0.311
+        }
+        
+        data = []
+        for station in stations:
+            base_level = base_levels[station]
+            for date in dates:
+                # Add some random variation to base levels
+                variation = np.random.normal(0, 0.002)
+                level = max(0, base_level + variation)
+                
+                data.append({
+                    'river_timestamp': date,
+                    'location_name': station,
+                    'river_level': level,
+                    'rainfall': np.random.uniform(0, 0.1),
+                    'rainfall_timestamp': date
+                })
+        
+        df = pd.DataFrame(data)
+        return df
 
     def show_real_time_monitoring(self, data):
         """Display real-time monitoring tab"""
