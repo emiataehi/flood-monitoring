@@ -10,4 +10,3 @@ numpy
 plotly
 scikit-learn
 joblib
-smtplib
