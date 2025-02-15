@@ -690,5 +690,4 @@ def main():
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
-    main()
-		
+    main()	
