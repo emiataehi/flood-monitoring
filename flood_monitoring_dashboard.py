@@ -332,33 +332,47 @@ class FloodMonitoringDashboard:
             st.plotly_chart(fig, use_container_width=True)
 	
     def show_historical_trends(self, data):
-        """Display historical trends tab"""
+        """Display historical trends tab with dynamic date range"""
         st.header("Historical Data Analysis")
         if data is not None:
+            # Date range selection
+            st.subheader("Select Date Range")
+            col1, col2 = st.columns(2)
+            with col1:
+                min_date = data['river_timestamp'].min().date()
+                max_date = data['river_timestamp'].max().date()
+                start_date = st.date_input("Start Date", min_date, min_value=min_date, max_value=max_date)
+            with col2:
+                end_date = st.date_input("End Date", max_date, min_value=min_date, max_value=max_date)
+
+            # Filter data based on selected date range
+            mask = (data['river_timestamp'].dt.date >= start_date) & (data['river_timestamp'].dt.date <= end_date)
+            filtered_data = data[mask]
+
             # Basic statistics overview
             st.subheader("Data Overview")
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric("Total Records", len(data))
+                st.metric("Total Records", len(filtered_data))
             
             with col2:
                 st.metric("Date Range", 
-                          f"{data['river_timestamp'].min().date()} to {data['river_timestamp'].max().date()}")
+                         f"{filtered_data['river_timestamp'].min().date()} to {filtered_data['river_timestamp'].max().date()}")
             
             with col3:
-                st.metric("Stations", ", ".join(data['location_name'].unique()))
+                st.metric("Stations", len(filtered_data['location_name'].unique()))
 
             # Trend visualization
             st.subheader("Trends Visualization")
             fig = go.Figure()
             
-            for station in data['location_name'].unique():
-                station_data = data[data['location_name'] == station]
+            for station in filtered_data['location_name'].unique():
+                station_data = filtered_data[filtered_data['location_name'] == station]
                 fig.add_trace(go.Scatter(
                     x=station_data['river_timestamp'],
                     y=station_data['river_level'],
-                    name=f"{station} - Level",
+                    name=station,
                     mode='lines+markers'
                 ))
             
@@ -371,27 +385,27 @@ class FloodMonitoringDashboard:
             
             st.plotly_chart(fig, use_container_width=True)
 
-            # Station summary
+            # Station summary with filtered data
             st.subheader("Station-wise Summary")
-            station_summary = data.groupby('location_name').agg({
+            station_summary = filtered_data.groupby('location_name').agg({
                 'river_level': ['mean', 'min', 'max', 'count'],
                 'rainfall': ['mean', 'min', 'max', 'count'],
                 'river_timestamp': ['min', 'max']
             })
 
-            station_summary.columns = [
-                'Avg River Level', 'Min River Level', 'Max River Level', 'River Level Readings',
-                'Avg Rainfall', 'Min Rainfall', 'Max Rainfall', 'Rainfall Readings',
-                'First Timestamp', 'Last Timestamp'
-            ]
+        station_summary.columns = [
+            'Avg River Level', 'Min River Level', 'Max River Level', 'River Level Readings',
+            'Avg Rainfall', 'Min Rainfall', 'Max Rainfall', 'Rainfall Readings',
+            'First Timestamp', 'Last Timestamp'
+        ]
 
-            numeric_cols = [
-                'Avg River Level', 'Min River Level', 'Max River Level',
-                'Avg Rainfall', 'Min Rainfall', 'Max Rainfall'
-            ]
-            station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
+        numeric_cols = [
+            'Avg River Level', 'Min River Level', 'Max River Level',
+            'Avg Rainfall', 'Min Rainfall', 'Max Rainfall'
+        ]
+        station_summary[numeric_cols] = station_summary[numeric_cols].round(3)
 
-            st.dataframe(station_summary)
+        st.dataframe(station_summary)
 
     def show_station_details(self, data):
         """Display station details tab"""
@@ -512,123 +526,71 @@ class FloodMonitoringDashboard:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
     def show_alerts(self, data):
-        """Display flood alerts tab with enhanced real-time indicators"""
-        st.header("Real-Time Flood Alerts")
+        """Display flood alerts tab with enhanced alert logging"""
+        st.header("Flood Alerts and Warnings")
 
         if data is None:
             st.warning("No data available for generating alerts")
             return
 
-        # Display current time
-        st.markdown(f"*Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-
-        # Create alert dashboard
-        for station in data['location_name'].unique():
-            station_data = data[data['location_name'] == station]
-            current_level = station_data['river_level'].iloc[0]
-            risk_level, _ = self.predictor.get_risk_level(current_level, station)
-            thresholds = self.predictor.thresholds[station]
-            
-            # Calculate risk percentage
-            critical_level = thresholds['critical']
-            risk_percentage = (current_level / critical_level) * 100
-            
-            # Create styled alert box
-            alert_color = {
-                "HIGH": "#FF4B4B",
-                "MODERATE": "#FFA500",
-                "LOW": "#2E7D32"
-            }.get(risk_level, "#2E7D32")
-            
-            st.markdown(
-                f"""
-                <div style='
-                    background-color: {alert_color}15;
-                    border: 2px solid {alert_color};
-                    border-radius: 10px;
-                    padding: 15px;
-                    margin-bottom: 20px;
-                '>
-                    <h3 style='color: {alert_color}; margin: 0;'>
-                        {['ℹ️', '⚠️', '🚨'][['LOW', 'MODERATE', 'HIGH'].index(risk_level)]} 
-                        {station}
-                    </h3>
-                    <div style='margin-top: 10px;'>
-                        <strong>Current Level:</strong> {current_level:.3f}m
-                        <br/>
-                        <strong>Risk Level:</strong> {risk_level}
-                        <br/>
-                        <strong>Critical Threshold:</strong> {critical_level:.3f}m
-                        <br/>
-                        <strong>Risk Status:</strong> {risk_percentage:.1f}% of critical level
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        # Display summary metrics
-        st.subheader("Alert Summary")
-        col1, col2, col3 = st.columns(3)
+        # Create tabs for current alerts and history
+        current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
         
-        with col1:
-            high_risk_count = sum(1 for station in data['location_name'].unique() 
-                                 if self.predictor.get_risk_level(
-                                     data[data['location_name'] == station]['river_level'].iloc[0], 
-                                     station)[0] == "HIGH")
-            st.metric("High Risk Stations", high_risk_count, 
-                     delta="Immediate Action Required" if high_risk_count > 0 else "Normal")
-
-        with col2:
-            moderate_risk_count = sum(1 for station in data['location_name'].unique() 
-                                     if self.predictor.get_risk_level(
-                                         data[data['location_name'] == station]['river_level'].iloc[0], 
-                                         station)[0] == "MODERATE")
-            st.metric("Moderate Risk Stations", moderate_risk_count, 
-                     delta="Monitor Closely" if moderate_risk_count > 0 else "Normal")
-
-        with col3:
-            low_risk_count = sum(1 for station in data['location_name'].unique() 
-                                if self.predictor.get_risk_level(
-                                    data[data['location_name'] == station]['river_level'].iloc[0], 
-                                    station)[0] == "LOW")
-            st.metric("Low Risk Stations", low_risk_count, 
-                     delta="Normal Conditions" if low_risk_count == len(data['location_name'].unique()) else "Some Risks Present")
-
-        # Emergency Response Section
-        st.subheader("Emergency Response Guidelines")
-        col1, col2 = st.columns(2)
+        with current_tab:
+            alerts_recorded = False
+            for station in data['location_name'].unique():
+                station_data = data[data['location_name'] == station]
+                current_level = station_data['river_level'].iloc[0]
+                risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
+                
+                # Log alert in history
+                self.alert_system.history.log_alert(
+                    station=station,
+                    river_level=current_level,
+                    alert_type=risk_level,
+                    notification_sent=True
+                )
+                alerts_recorded = True
+                
+                # Display alert with appropriate styling
+                if risk_level == "HIGH":
+                    st.error(f"🚨 **CRITICAL FLOOD RISK** at {station}")
+                elif risk_level == "MODERATE":
+                    st.warning(f"⚠️ **FLOOD WARNING** at {station}")
+                else:
+                    st.info(f"ℹ️ **Normal Conditions** at {station}")
+                
+                st.metric(
+                    label=f"{station} Current Level",
+                    value=f"{current_level:.3f}m",
+                    delta=f"Risk Level: {risk_level}"
+                )
         
-        with col1:
-            st.markdown("""
-            ### For Low Risk Areas
-            1. Monitor local weather updates
-            2. Keep emergency contacts handy
-            3. Review flood preparedness plan
-            4. Check emergency supplies
-            5. Stay informed through official channels
-            """)
-        
-        with col2:
-            st.markdown("""
-            ### For High Risk Areas
-            1. Prepare for immediate evacuation
-            2. Move valuables to higher ground
-            3. Follow official instructions
-            4. Charge all communication devices
-            5. Gather emergency supplies
-            """)
-
-        # Add emergency contacts for high-risk situations
-        if high_risk_count > 0:
-            st.error("""
-            ### 🚨 Emergency Contacts
-            - **Emergency Services:** 999
-            - **Flood Line:** 0345 988 1188
-            - **Environment Agency:** 0800 80 70 60
-            
-            Keep these numbers readily available and monitor official guidance.
-            """)
+        with history_tab:
+            recent_alerts = self.alert_system.get_recent_alerts(days=7)
+            if not recent_alerts.empty:
+                st.subheader("Recent Alerts (Last 7 Days)")
+                
+                # Format timestamps for display
+                display_df = recent_alerts.copy()
+                display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+                display_df['river_level'] = display_df['river_level'].round(3)
+                
+                st.dataframe(
+                    display_df[['timestamp', 'station', 'alert_type', 'river_level']],
+                    column_config={
+                        "timestamp": "Time",
+                        "station": "Station",
+                        "alert_type": "Alert Level",
+                        "river_level": "River Level (m)"
+                    },
+                    hide_index=True
+                )
+            else:
+                if alerts_recorded:
+                    st.info("New alerts have been recorded. Refresh to see updates.")
+                else:
+                    st.info("No alerts in the past 7 days")
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
