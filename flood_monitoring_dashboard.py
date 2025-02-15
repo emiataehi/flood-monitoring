@@ -928,6 +928,9 @@ class FloodMonitoringDashboard:
             st.warning("No data available")
             return
         
+        # Track overall system risk
+        system_risks = []
+        
         # Quick status overview
         for station in data['location_name'].unique():
             station_data = data[data['location_name'] == station]
@@ -936,23 +939,30 @@ class FloodMonitoringDashboard:
             # Use precise thresholds for risk determination
             thresholds = self.predictor.thresholds[station]
             
-            # Precise risk categorization
+            # Precise risk categorization with proximity to thresholds
             if current_level >= thresholds['critical']:
                 risk_level = "HIGH RISK"
                 risk_color = "red"
                 icon = "🚨"
             elif current_level >= thresholds['alert']:
+                risk_level = "HIGH RISK"
+                risk_color = "red"
+                icon = "🚨"
+            elif current_level >= thresholds['warning']:
                 risk_level = "MODERATE RISK"
                 risk_color = "orange"
                 icon = "⚠️"
-            elif current_level >= thresholds['warning']:
-                risk_level = "WARNING"
+            elif current_level >= thresholds['warning'] * 0.9:  # Within 10% of warning threshold
+                risk_level = "CAUTION"
                 risk_color = "yellow"
                 icon = "⚠️"
             else:
                 risk_level = "LOW RISK"
                 risk_color = "green"
                 icon = "ℹ️"
+            
+            # Track system risk for overall assessment
+            system_risks.append(risk_level)
             
             # Mobile-friendly card
             st.markdown(f"""
@@ -975,7 +985,7 @@ class FloodMonitoringDashboard:
                     <p style='color: {risk_color}; font-weight: bold;'>{risk_level}</p>
                 </div>
                 <div style='margin-top: 10px; font-size: 0.8em; color: #666;'>
-                    <p><strong>Thresholds:</strong></p>
+                    <p><strong>Proximity to Thresholds:</strong></p>
                     <p>Warning: {thresholds['warning']:.3f}m | Alert: {thresholds['alert']:.3f}m | Critical: {thresholds['critical']:.3f}m</p>
                 </div>
             </div>
@@ -1012,23 +1022,14 @@ class FloodMonitoringDashboard:
         st.subheader("Emergency Guidance")
         
         # Determine overall system risk
-        risk_levels = []
-        for station in data['location_name'].unique():
-            current_level = data[data['location_name'] == station]['river_level'].iloc[0]
-            thresholds = self.predictor.thresholds[station]
-            
-            if current_level >= thresholds['critical']:
-                risk_levels.append("HIGH")
-            elif current_level >= thresholds['alert']:
-                risk_levels.append("MODERATE")
-            elif current_level >= thresholds['warning']:
-                risk_levels.append("WARNING")
-            else:
-                risk_levels.append("LOW")
+        risk_priority = {
+            "HIGH RISK": 3,
+            "MODERATE RISK": 2,
+            "CAUTION": 1,
+            "LOW RISK": 0
+        }
         
-        has_high_risk = "HIGH" in risk_levels
-        has_moderate_risk = "MODERATE" in risk_levels
-        has_warning = "WARNING" in risk_levels
+        overall_risk = max(system_risks, key=lambda x: risk_priority[x])
         
         col1, col2 = st.columns(2)
         
@@ -1051,21 +1052,21 @@ class FloodMonitoringDashboard:
             """)
         
         # Conditional Emergency Information
-        if has_high_risk:
+        if overall_risk == "HIGH RISK":
             st.error("""
             ### 🚨 CRITICAL ALERT
             High-risk conditions detected. 
             Immediate action may be required.
             """)
-        elif has_moderate_risk:
+        elif overall_risk == "MODERATE RISK":
             st.warning("""
             ### ⚠️ FLOOD WARNING
             Moderate risk conditions present. 
             Stay alert and prepared.
             """)
-        elif has_warning:
+        elif overall_risk == "CAUTION":
             st.warning("""
-            ### ⚠️ WARNING LEVEL
+            ### ⚠️ CAUTION LEVEL
             Potential flood risk detected.
             Monitor conditions closely.
             """)
@@ -1077,7 +1078,6 @@ class FloodMonitoringDashboard:
         - **Flood Helpline:** 0345 988 1188
         - **Local Council:** Contact your local authority
         """)
-
 def main():
     # Page configuration
     st.set_page_config(
