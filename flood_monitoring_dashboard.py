@@ -1025,5 +1025,58 @@ class FloodMonitoringDashboard:
         - **Local Council:** Contact your local authority
         """)
 
+def main():
+    # Page configuration
+    st.set_page_config(
+        page_title="Flood Monitoring Dashboard",
+        layout="wide"
+    )
+    st.title("Comprehensive Flood Monitoring Dashboard")
+
+    # Initialize dashboard
+    dashboard = FloodMonitoringDashboard()
+
+    # Create tabs
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+        "Real-Time Monitoring",
+        "Predictions",
+        "Historical Trends",
+        "Station Details",
+        "Geospatial View",
+        "Watershed Analysis",
+        "Alerts",
+        "Advanced Analytics",
+        "Reports",
+        "Mobile View"  # New tab
+    ])
+
+    # Fetch river data
+    river_data = dashboard.fetch_river_data()
+
+    # Display tabs
+    with tab1:
+        dashboard.show_real_time_monitoring(river_data)
+    with tab2:
+        dashboard.show_predictions(river_data)
+    with tab3:
+        dashboard.show_historical_trends(river_data)
+    with tab4:
+        dashboard.show_station_details(river_data)
+    with tab5:
+        dashboard.show_geospatial_view(river_data)
+    with tab6:
+        dashboard.show_watershed_analysis(river_data)
+    with tab7:
+        dashboard.show_alerts(river_data)
+    with tab8:
+        dashboard.show_advanced_analytics(river_data)
+    with tab9:
+        dashboard.generate_report(river_data)
+    with tab10:
+        dashboard.show_mobile_dashboard(river_data)    
+
+    # Optional: Update query parameters
+    st.query_params.update(refresh=True)
+
 if __name__ == '__main__':
     main()	
