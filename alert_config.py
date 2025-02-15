@@ -1,5 +1,4 @@
-
-c# alert_config.py
+# alert_config.py
 class AlertConfiguration:
     def __init__(self):
         # Predefined alert thresholds with customization options
@@ -49,8 +48,3 @@ class AlertConfiguration:
     def get_alert_configuration(self, station):
         """Get current alert configuration for a station"""
         return self.thresholds.get(station, {})
-
-    def get_notification_channels(self, station):
-        """Get configured notification channels for a station"""
-        station_config = self.thresholds.get(station, {})
-        return station_config.get('notification_channels', ['dashboard'])
