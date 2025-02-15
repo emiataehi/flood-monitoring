@@ -157,12 +157,22 @@ class FloodMonitoringDashboard:
     def __init__(self):
         """Initialize dashboard components"""
         try:
+            # Load environment variables
+            load_dotenv()
+            
+            # Initialize Supabase client
             supabase_url = st.secrets["SUPABASE_URL"]
             supabase_key = st.secrets["SUPABASE_KEY"]
             self.supabase = create_client(supabase_url, supabase_key)
+            
+            # Initialize components
             self.predictor = FloodPredictionSystem()
             self.watershed = WatershedAnalysis()
             self.analytics = AdvancedAnalytics()
+            self.notification_system = NotificationSystem()
+            self.alert_config = AlertConfiguration()
+            self.alert_history = AlertHistoryTracker()
+            
         except Exception as e:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
@@ -600,11 +610,6 @@ class FloodMonitoringDashboard:
                     
                     st.plotly_chart(fig, use_container_width=True)
                     st.write(f"Forecast Confidence: {forecast['confidence']}")
-
-class FloodMonitoringDashboard:
-    def __init__(self):
-        # Existing initialization
-        self.notification_system = NotificationSystem()
 
     def show_alerts(self, data):
         """Enhanced alert display with notifications"""
