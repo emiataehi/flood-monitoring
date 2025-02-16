@@ -347,7 +347,6 @@ class FloodMonitoringDashboard:
             
             st.plotly_chart(fig, use_container_width=True)
 	
-            # Inside show_predictions method, modify the anomaly detection section:
             st.subheader("Anomaly Detection")
             anomaly_summary = {}
 
@@ -359,8 +358,7 @@ class FloodMonitoringDashboard:
                     anomaly_summary[station] = {
                         'total_count': len(anomalies),
                         'high_level': len(anomalies[anomalies['anomaly_type'] == 'High Level']),
-                        'low_level': len(anomalies[anomalies['anomaly_type'] == 'Low Level']),
-                        'anomalies': anomalies
+                        'low_level': len(anomalies[anomalies['anomaly_type'] == 'Low Level'])
                     }
 
             # Display anomaly summary
@@ -372,51 +370,17 @@ class FloodMonitoringDashboard:
                         st.metric(
                             station, 
                             f"Total Anomalies: {summary['total_count']}",
-                            delta=f"High: {summary['high_level']} | Low: {summary['low_level']}",
-                            delta_color="warning" if summary['total_count'] > 0 else "normal"
+                            delta=f"High: {summary['high_level']} | Low: {summary['low_level']}"
                         )
                 
                 # Detailed view toggle
                 if st.checkbox("Show Detailed Anomalies"):
-                    for station, anomaly_info in anomaly_summary.items():
+                    for station, anomalies in anomaly_summary.items():
                         st.write(f"### {station} Anomalies")
-                        
-                        # Visualization of anomalies
-                        fig = go.Figure()
-                        
-                        # Original river levels
-                        station_data = data[data['location_name'] == station]
-                        fig.add_trace(go.Scatter(
-                            x=station_data['river_timestamp'],
-                            y=station_data['river_level'],
-                            mode='lines',
-                            name='River Levels',
-                            line=dict(color='blue')
-                        ))
-                        
-                        # Anomalies
-                        anomalies = anomaly_info['anomalies']
-                        fig.add_trace(go.Scatter(
-                            x=anomalies['river_timestamp'],
-                            y=anomalies['river_level'],
-                            mode='markers',
-                            name='Anomalies',
-                            marker=dict(color='red', size=10)
-                        ))
-                        
-                        fig.update_layout(
-                            title=f'Anomalies in {station}',
-                            xaxis_title='Time',
-                            yaxis_title='River Level',
-                            height=400
-                        )
-                        
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Detailed anomaly table
-                        st.dataframe(anomalies[['river_timestamp', 'river_level', 'anomaly_type', 'z_score']])
+                        detailed_anomalies = self.anomaly_detector.detect_anomalies(data, station)
+                        st.dataframe(detailed_anomalies[['river_timestamp', 'river_level', 'anomaly_type', 'z_score']])
             else:
-                st.success("No significant anomalies detected across stations")         
+                st.success("No significant anomalies detected across stations")           
     
     
     def show_historical_trends(self, data):
