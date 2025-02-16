@@ -220,45 +220,42 @@ class FloodMonitoringDashboard:
         """Generate sample river monitoring data with current timestamps"""
         # Use current time as the end date
         end_date = datetime.now(pytz.UTC)
-        start_date = end_date - timedelta(days=days_back)
+        start_date = end_date - timedelta(hours=24)  # Last 24 hours
         
-        # Generate hourly timestamps for the entire period
+        # Generate timestamps every 10 minutes
         dates = pd.date_range(
             start=start_date,
             end=end_date,
-            freq='H'
+            freq='10T'  # Every 10 minutes
         )
         
         stations = ['Rochdale', 'Manchester Racecourse', 'Bury Ground']
         base_levels = {
-            'Rochdale': 0.173,
-            'Manchester Racecourse': 0.927,
-            'Bury Ground': 0.311
+            'Rochdale': 0.166,
+            'Manchester Racecourse': 0.915,
+            'Bury Ground': 0.309
         }
         
         data = []
         for station in stations:
             base_level = base_levels[station]
             for date in dates:
-                # Daily variation
-                hour_effect = 0.02 * np.sin(2 * np.pi * date.hour / 24)
-                # Monthly variation
-                day_effect = 0.03 * np.sin(2 * np.pi * date.day / 30)
-                # Random variation
-                random_effect = np.random.normal(0, 0.005)
+                # Minimal variation to keep levels stable
+                hour_effect = 0.01 * np.sin(2 * np.pi * date.hour / 24)
+                random_effect = np.random.normal(0, 0.001)
                 
                 # Combine effects
-                level = max(0, base_level + hour_effect + day_effect + random_effect)
+                level = max(0, base_level + hour_effect + random_effect)
                 
                 data.append({
                     'river_timestamp': date,
                     'location_name': station,
                     'river_level': level,
-                    'rainfall': np.random.uniform(0, 0.2) if np.random.random() < 0.3 else 0,
+                    'rainfall': np.random.uniform(0, 0.01) if np.random.random() < 0.1 else 0,
                     'rainfall_timestamp': date
                 })
         
-        # Sort data by timestamp to ensure most recent data is first
+        # Sort data by timestamp in descending order
         df = pd.DataFrame(data)
         return df.sort_values('river_timestamp', ascending=False)
     
