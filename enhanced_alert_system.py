@@ -3,16 +3,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import logging
+import random
 
 class EnhancedAlertSystem:
     def __init__(self):
         """
-        Initialize Enhanced Alert System
-        
-        Key Features:
-        - Track multiple alert levels
-        - Store alert history
-        - Support different notification channels
+        Initialize Enhanced Alert System with more realistic notification handling
         """
         # Alert thresholds for each station
         self.alert_thresholds = {
@@ -39,11 +35,11 @@ class EnhancedAlertSystem:
         # Alert history storage
         self.alert_history = []
         
-        # Notification channels
-        self.notification_channels = {
-            'email': [],
-            'sms': [],
-            'mobile_push': []
+        # Notification contacts (simulated)
+        self.notification_contacts = {
+            'email': ['admin@floodmonitoring.com', 'emergency@localcouncil.gov'],
+            'sms': ['+441234567890', '+447890123456'],
+            'mobile_push': ['device1', 'device2']
         }
         
         # Logging setup
@@ -91,6 +87,9 @@ class EnhancedAlertSystem:
         # Determine alert level
         alert_level, description = self.determine_alert_level(station, current_level)
         
+        # Decide whether to send notifications based on alert level
+        send_notifications = alert_level in ['WARNING', 'HIGH', 'CRITICAL']
+        
         # Create alert record
         alert = {
             'timestamp': datetime.now(),
@@ -98,7 +97,7 @@ class EnhancedAlertSystem:
             'current_level': current_level,
             'alert_level': alert_level,
             'description': description,
-            'notified_channels': []
+            'notified_channels': self.send_notifications(alert_level) if send_notifications else []
         }
         
         # Log the alert
@@ -109,64 +108,36 @@ class EnhancedAlertSystem:
         
         return alert
     
-    def send_notifications(self, alert):
+    def send_notifications(self, alert_level):
         """
-        Send notifications through different channels
+        Selectively send notifications based on alert level
         
         Args:
-        - alert: Alert details dictionary
+        - alert_level: Current alert level
         
         Returns:
-        - List of successful notification channels
+        - List of notification channels used
         """
-        successful_channels = []
+        # Only send notifications for serious alerts
+        if alert_level not in ['WARNING', 'HIGH', 'CRITICAL']:
+            return []
         
-        # Email Notification
-        if self._send_email_alert(alert):
-            successful_channels.append('email')
+        # Simulate realistic notification selection
+        notification_channels = []
         
-        # SMS Notification
-        if self._send_sms_alert(alert):
-            successful_channels.append('sms')
+        # Email notification (70% chance for serious alerts)
+        if random.random() < 0.7 and self.notification_contacts['email']:
+            notification_channels.append('email')
         
-        # Mobile Push Notification
-        if self._send_mobile_push_alert(alert):
-            successful_channels.append('mobile_push')
+        # SMS notification (50% chance for high-risk alerts)
+        if alert_level in ['HIGH', 'CRITICAL'] and random.random() < 0.5 and self.notification_contacts['sms']:
+            notification_channels.append('sms')
         
-        # Update alert with notified channels
-        alert['notified_channels'] = successful_channels
+        # Mobile push notification (30% chance)
+        if random.random() < 0.3 and self.notification_contacts['mobile_push']:
+            notification_channels.append('mobile_push')
         
-        return successful_channels
-    
-    def _send_email_alert(self, alert):
-        """Simulate email notification"""
-        try:
-            # Placeholder for actual email sending logic
-            print(f"Email Alert Sent: {alert['station']} - {alert['alert_level']}")
-            return True
-        except Exception as e:
-            logging.error(f"Email Alert Failed: {str(e)}")
-            return False
-    
-    def _send_sms_alert(self, alert):
-        """Simulate SMS notification"""
-        try:
-            # Placeholder for actual SMS sending logic
-            print(f"SMS Alert Sent: {alert['station']} - {alert['alert_level']}")
-            return True
-        except Exception as e:
-            logging.error(f"SMS Alert Failed: {str(e)}")
-            return False
-    
-    def _send_mobile_push_alert(self, alert):
-        """Simulate mobile push notification"""
-        try:
-            # Placeholder for actual mobile push notification logic
-            print(f"Mobile Push Alert Sent: {alert['station']} - {alert['alert_level']}")
-            return True
-        except Exception as e:
-            logging.error(f"Mobile Push Alert Failed: {str(e)}")
-            return False
+        return notification_channels
     
     def get_recent_alerts(self, days=7):
         """
