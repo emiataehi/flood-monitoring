@@ -293,13 +293,20 @@ class FloodMonitoringDashboard:
         """Display predictions tab"""
         st.header("River Level Predictions")
         if data is not None:
+            # Sort data by most recent timestamp and get the current time
+            data = data.sort_values('river_timestamp', ascending=False)
+            current_time = pd.Timestamp.now(tz='UTC')
+            
             cols = st.columns(3)
             for i, station in enumerate(data['location_name'].unique()):
                 with cols[i]:
+                    # Get most recent station data
                     station_data = data[data['location_name'] == station].copy()
                     current_level = station_data['river_level'].iloc[0]
                     
-                    trend_direction, trend_rate, confidence = self.predictor.analyze_trend(station_data)
+                    # Analyze trend on recent data
+                    recent_data = station_data.head(24)  # Last 24 hours
+                    trend_direction, trend_rate, confidence = self.predictor.analyze_trend(recent_data)
                     risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                     
                     with st.expander(f"{station} Prediction Details", expanded=True):
@@ -332,6 +339,7 @@ class FloodMonitoringDashboard:
             fig = go.Figure()
             
             for station in data['location_name'].unique():
+                # Get last 24 hours of data for each station
                 station_data = data[data['location_name'] == station].head(24)
                 fig.add_trace(go.Scatter(
                     x=station_data['river_timestamp'],
@@ -341,7 +349,7 @@ class FloodMonitoringDashboard:
                 ))
             
             fig.update_layout(
-                title="River Levels - Last 6 Hours",
+                title=f"River Levels - Last 24 Hours (as of {current_time.strftime('%Y-%m-%d %H:%M')})",
                 xaxis_title="Time",
                 yaxis_title="River Level (m)",
                 height=500
