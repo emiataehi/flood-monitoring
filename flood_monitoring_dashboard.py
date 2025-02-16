@@ -347,15 +347,42 @@ class FloodMonitoringDashboard:
             
             st.plotly_chart(fig, use_container_width=True)
 	
-            # Anomaly Detection Section
             st.subheader("Anomaly Detection")
+            anomaly_summary = {}
+
             for station in data['location_name'].unique():
                 anomalies = self.anomaly_detector.detect_anomalies(data, station)
                 
                 if not anomalies.empty:
-                    st.warning(f"⚠️ {len(anomalies)} Anomalies Detected at {station}")
-                    with st.expander(f"Anomalies in {station}"):
-                        st.dataframe(anomalies[['river_timestamp', 'river_level']])
+                    # Store summary for each station
+                    anomaly_summary[station] = {
+                        'total_count': len(anomalies),
+                        'high_level': len(anomalies[anomalies['anomaly_type'] == 'High Level']),
+                        'low_level': len(anomalies[anomalies['anomaly_type'] == 'Low Level'])
+                    }
+
+            # Display anomaly summary
+            if anomaly_summary:
+                col1, col2, col3 = st.columns(3)
+                
+                for i, (station, summary) in enumerate(anomaly_summary.items()):
+                    with [col1, col2, col3][i]:
+                        st.metric(
+                            station, 
+                            f"Total Anomalies: {summary['total_count']}",
+                            delta=f"High: {summary['high_level']} | Low: {summary['low_level']}"
+                        )
+                
+                # Detailed view toggle
+                if st.checkbox("Show Detailed Anomalies"):
+                    for station, anomalies in anomaly_summary.items():
+                        st.write(f"### {station} Anomalies")
+                        detailed_anomalies = self.anomaly_detector.detect_anomalies(data, station)
+                        st.dataframe(detailed_anomalies[['river_timestamp', 'river_level', 'anomaly_type', 'z_score']])
+            else:
+                st.success("No significant anomalies detected across stations")
+                                    st.dataframe(anomalies[['river_timestamp', 'river_level']])
+                
     
     
     def show_historical_trends(self, data):
