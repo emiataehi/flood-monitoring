@@ -217,8 +217,8 @@ class FloodMonitoringDashboard:
             return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
-        """Generate sample river monitoring data for a longer period"""
-        # Calculate date range
+        """Generate sample river monitoring data with current timestamps"""
+        # Use current time as the end date
         end_date = datetime.now(pytz.UTC)
         start_date = end_date - timedelta(days=days_back)
         
@@ -258,7 +258,9 @@ class FloodMonitoringDashboard:
                     'rainfall_timestamp': date
                 })
         
-        return pd.DataFrame(data)
+        # Sort data by timestamp to ensure most recent data is first
+        df = pd.DataFrame(data)
+        return df.sort_values('river_timestamp', ascending=False)
     
     
     def show_real_time_monitoring(self, data):
