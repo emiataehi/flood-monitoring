@@ -15,6 +15,7 @@ from notification_system import NotificationSystem
 from alert_config import AlertConfiguration
 from alert_history import AlertHistoryTracker
 from alert_system import AlertSystem  
+from anomaly_detector import AnomalyDetector
  
 
 # Global Station Configuration
@@ -174,10 +175,13 @@ class FloodMonitoringDashboard:
             self.analytics = AdvancedAnalytics()
             
             # Initialize alert system components
-            self.alert_system = AlertSystem()  # Add this line
+            self.alert_system = AlertSystem()
             self.notification_system = NotificationSystem()
             self.alert_config = AlertConfiguration()
             self.alert_history = AlertHistoryTracker()
+            
+            # Add anomaly detector
+            self.anomaly_detector = AnomalyDetector()
             
         except Exception as e:
             st.error(f"Failed to initialize dashboard: {e}")
@@ -343,6 +347,17 @@ class FloodMonitoringDashboard:
             
             st.plotly_chart(fig, use_container_width=True)
 	
+            # Anomaly Detection Section
+            st.subheader("Anomaly Detection")
+            for station in data['location_name'].unique():
+                anomalies = self.anomaly_detector.detect_anomalies(data, station)
+                
+                if not anomalies.empty:
+                    st.warning(f"⚠️ {len(anomalies)} Anomalies Detected at {station}")
+                    with st.expander(f"Anomalies in {station}"):
+                        st.dataframe(anomalies[['river_timestamp', 'river_level']])
+    
+    
     def show_historical_trends(self, data):
         """Display historical trends tab with proper date range"""
         st.header("Historical Data Analysis")
