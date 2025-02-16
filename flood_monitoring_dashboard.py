@@ -16,7 +16,7 @@ from alert_config import AlertConfiguration
 from alert_history import AlertHistoryTracker
 from alert_system import AlertSystem  
 from anomaly_detector import AnomalyDetector
- 
+from confidence_intervals import ConfidenceIntervalCalculator
 
 # Global Station Configuration
 STATION_CONFIG = {
@@ -183,6 +183,9 @@ class FloodMonitoringDashboard:
             # Add anomaly detector
             self.anomaly_detector = AnomalyDetector()
             
+            # Add this line
+            self.ci_calculator = ConfidenceIntervalCalculator()
+        
         except Exception as e:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
@@ -309,6 +312,9 @@ class FloodMonitoringDashboard:
                     trend_direction, trend_rate, confidence = self.predictor.analyze_trend(recent_data)
                     risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                     
+                    # Calculate Confidence Interval
+                    ci_data = self.ci_calculator.calculate_interval(data, station)
+                    
                     with st.expander(f"{station} Prediction Details", expanded=True):
                         st.metric(
                             "Current Level",
@@ -316,6 +322,18 @@ class FloodMonitoringDashboard:
                             f"Risk: {risk_level}",
                             delta_color="inverse" if risk_level == "HIGH" else "normal"
                         )
+                        
+                        # Confidence Interval Metric
+                        st.metric(
+                            "Confidence Interval",
+                            f"{ci_data['confidence_percentage']:.1f}% CI",
+                            f"±{ci_data['margin_of_error']:.3f}m"
+                        )
+                        
+                        # Additional confidence interval details
+                        st.write(f"**Lower Bound:** {ci_data['lower_bound']:.3f}m")
+                        st.write(f"**Upper Bound:** {ci_data['upper_bound']:.3f}m")
+                        
                         
                         st.write(f"**Trend:** {trend_direction}")
                         st.write(f"**Rate of Change:** {trend_rate:.6f}m/hour")
