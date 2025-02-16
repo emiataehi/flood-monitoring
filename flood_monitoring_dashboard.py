@@ -380,9 +380,7 @@ class FloodMonitoringDashboard:
                         detailed_anomalies = self.anomaly_detector.detect_anomalies(data, station)
                         st.dataframe(detailed_anomalies[['river_timestamp', 'river_level', 'anomaly_type', 'z_score']])
             else:
-                st.success("No significant anomalies detected across stations")
-                                    st.dataframe(anomalies[['river_timestamp', 'river_level']])
-                
+                st.success("No significant anomalies detected across stations")           
     
     
     def show_historical_trends(self, data):
