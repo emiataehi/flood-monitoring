@@ -8,26 +8,29 @@ import random
 class EnhancedAlertSystem:
     def __init__(self):
         """
-        Initialize Enhanced Alert System with more realistic notification handling
+        Initialize Enhanced Alert System with more sensitive thresholds
         """
-        # Alert thresholds for each station
+        # More granular and sensitive alert thresholds
         self.alert_thresholds = {
             'Bury Ground': {
-                'low_risk': 0.300,    # Normal monitoring
-                'warning': 0.314,     # First alert level
-                'high_risk': 0.317,   # Serious concern
+                'normal': 0.290,      # Baseline normal level
+                'low_risk': 0.300,    # Start of mild concern
+                'warning': 0.310,     # Increased monitoring
+                'high_risk': 0.315,   # Serious concern
                 'critical': 0.320     # Immediate action required
             },
             'Manchester Racecourse': {
+                'normal': 0.890,
                 'low_risk': 0.900,
-                'warning': 0.938,
-                'high_risk': 0.944,
+                'warning': 0.930,
+                'high_risk': 0.940,
                 'critical': 0.950
             },
             'Rochdale': {
+                'normal': 0.150,
                 'low_risk': 0.160,
-                'warning': 0.168,
-                'high_risk': 0.169,
+                'warning': 0.165,
+                'high_risk': 0.168,
                 'critical': 0.170
             }
         }
@@ -35,11 +38,20 @@ class EnhancedAlertSystem:
         # Alert history storage
         self.alert_history = []
         
-        # Notification contacts (simulated)
+        # Simulated notification contacts
         self.notification_contacts = {
-            'email': ['admin@floodmonitoring.com', 'emergency@localcouncil.gov'],
-            'sms': ['+441234567890', '+447890123456'],
-            'mobile_push': ['device1', 'device2']
+            'email': [
+                'emergency_services@localcouncil.gov',
+                'flood_response@citycouncil.org'
+            ],
+            'sms': [
+                '+441234567890',
+                '+447890123456'
+            ],
+            'mobile_push': [
+                'emergency_app_admin',
+                'flood_alert_system'
+            ]
         }
         
         # Logging setup
@@ -51,7 +63,7 @@ class EnhancedAlertSystem:
     
     def determine_alert_level(self, station, current_level):
         """
-        Determine the current alert level for a station
+        Determine the current alert level for a station with more nuanced categorization
         
         Args:
         - station: Name of the monitoring station
@@ -67,11 +79,13 @@ class EnhancedAlertSystem:
         elif current_level >= thresholds.get('high_risk', float('inf')):
             return 'HIGH', 'Severe flood risk, prepare for evacuation'
         elif current_level >= thresholds.get('warning', float('inf')):
-            return 'WARNING', 'Potential flood risk, stay alert'
+            return 'WARNING', 'Elevated flood risk, increased monitoring needed'
         elif current_level >= thresholds.get('low_risk', float('inf')):
-            return 'MONITOR', 'Elevated water levels, monitor closely'
+            return 'MODERATE', 'Water levels above normal, stay alert'
+        elif current_level >= thresholds.get('normal', float('inf')):
+            return 'LOW', 'Slightly elevated water levels'
         else:
-            return 'NORMAL', 'No immediate flood risk'
+            return 'NORMAL', 'Water levels within expected range'
     
     def generate_alert(self, station, current_level):
         """
@@ -110,7 +124,7 @@ class EnhancedAlertSystem:
     
     def send_notifications(self, alert_level):
         """
-        Selectively send notifications based on alert level
+        Send notifications for serious alert levels
         
         Args:
         - alert_level: Current alert level
@@ -118,24 +132,21 @@ class EnhancedAlertSystem:
         Returns:
         - List of notification channels used
         """
-        # Only send notifications for serious alerts
-        if alert_level not in ['WARNING', 'HIGH', 'CRITICAL']:
-            return []
-        
-        # Simulate realistic notification selection
         notification_channels = []
         
-        # Email notification (70% chance for serious alerts)
-        if random.random() < 0.7 and self.notification_contacts['email']:
-            notification_channels.append('email')
+        # More aggressive notification for serious alerts
+        if alert_level == 'WARNING':
+            # Lower probability for warning level
+            if random.random() < 0.4:
+                notification_channels.extend(['email'])
         
-        # SMS notification (50% chance for high-risk alerts)
-        if alert_level in ['HIGH', 'CRITICAL'] and random.random() < 0.5 and self.notification_contacts['sms']:
-            notification_channels.append('sms')
+        elif alert_level == 'HIGH':
+            # Higher probability for high-risk alerts
+            notification_channels.extend(['email', 'sms'])
         
-        # Mobile push notification (30% chance)
-        if random.random() < 0.3 and self.notification_contacts['mobile_push']:
-            notification_channels.append('mobile_push')
+        elif alert_level == 'CRITICAL':
+            # Maximum notification for critical alerts
+            notification_channels.extend(['email', 'sms', 'mobile_push'])
         
         return notification_channels
     
