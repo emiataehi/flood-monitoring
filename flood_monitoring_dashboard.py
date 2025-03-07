@@ -593,7 +593,14 @@ class FloodMonitoringDashboard:
 
         if data is not None:
             st.subheader("Latest Readings")
-            station_data = data[data['location_name'] == selected_station].iloc[0]
+            filtered_data = data[data['location_name'] == selected_station]
+            if not filtered_data.empty:  # If there is data
+                station_data = filtered_data.iloc[0]
+                st.write(f"**River Level:** {station_data['river_level']:.3f}m")
+                st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
+                st.write(f"**Timestamp:** {station_data['river_timestamp']}")
+            else:  # If there is NO data
+                st.warning(f"No data available for {selected_station}.")
             st.write(f"**River Level:** {station_data['river_level']:.3f}m")
             st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
             st.write(f"**Timestamp:** {station_data['river_timestamp']}")
