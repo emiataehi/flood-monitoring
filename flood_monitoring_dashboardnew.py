@@ -328,6 +328,7 @@ class FloodMonitoringDashboard:
     def show_predictions(self, data):
         """Display predictions tab"""
         st.header("River Level Predictions")
+        
         if data is not None:
             # Sort data by most recent timestamp and get the current time
             data = data.sort_values('river_timestamp', ascending=False)
@@ -340,18 +341,30 @@ class FloodMonitoringDashboard:
                     station_data = data[data['location_name'] == station].copy()
                     current_level = station_data['river_level'].iloc[0]
                     
-                    # Analyze trend on recent data
-                    recent_data = station_data.head(24)  # Last 24 hours
-                    # Debugging: Check if data is empty or missing columns
+                    # Check if there is enough data (at least 24 rows)
+                    if len(station_data) < 24:
+                        st.error(f"❌ Not enough data for {station} (less than 24 hours of data available).")
+                        continue  # Skip this station and go to the next
+                    
+                    # Analyze trend on recent data (last 24 hours)
+                    recent_data = station_data.head(24)
+                    
+                    # Check if recent data is empty or missing 'river_level' column
                     if recent_data.empty:
                         st.error(f"❌ No recent data found for {station}. Check database query.")
-                        return
+                        continue
                     elif 'river_level' not in recent_data.columns:
                         st.error(f"❌ 'river_level' column is missing for {station}.")
-                        return
-
+                        continue
+                    
                     st.write(f"📊 Debugging: Recent Data for {station}", recent_data.head())
-                    trend_direction, trend_rate, confidence = self.predictor.analyze_trend(recent_data)
+
+                    try:
+                        trend_direction, trend_rate, confidence = self.predictor.analyze_trend(recent_data)
+                    except Exception as e:
+                        st.error(f"❌ Error analyzing trend for {station}: {e}")
+                        continue
+                    
                     risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                     
                     # Calculate Confidence Interval
@@ -416,41 +429,7 @@ class FloodMonitoringDashboard:
             )
             
             st.plotly_chart(fig, use_container_width=True)
-	
-            st.subheader("Anomaly Detection")
-            anomaly_summary = {}
 
-            for station in data['location_name'].unique():
-                anomalies = self.anomaly_detector.detect_anomalies(data, station)
-                
-                if not anomalies.empty:
-                    # Store summary for each station
-                    anomaly_summary[station] = {
-                        'total_count': len(anomalies),
-                        'high_level': len(anomalies[anomalies['anomaly_type'] == 'High Level']),
-                        'low_level': len(anomalies[anomalies['anomaly_type'] == 'Low Level'])
-                    }
-
-            # Display anomaly summary
-            if anomaly_summary:
-                col1, col2, col3 = st.columns(3)
-                
-                for i, (station, summary) in enumerate(anomaly_summary.items()):
-                    with [col1, col2, col3][i]:
-                        st.metric(
-                            station, 
-                            f"Total Anomalies: {summary['total_count']}",
-                            delta=f"High: {summary['high_level']} | Low: {summary['low_level']}"
-                        )
-                
-                # Detailed view toggle
-                if st.checkbox("Show Detailed Anomalies"):
-                    for station, anomalies in anomaly_summary.items():
-                        st.write(f"### {station} Anomalies")
-                        detailed_anomalies = self.anomaly_detector.detect_anomalies(data, station)
-                        st.dataframe(detailed_anomalies[['river_timestamp', 'river_level', 'anomaly_type', 'z_score']])
-            else:
-                st.success("No significant anomalies detected across stations")           
     
     
     def show_historical_trends(self, data):
