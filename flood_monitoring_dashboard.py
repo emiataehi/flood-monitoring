@@ -1,4 +1,5 @@
 import streamlit as st
+import requests 
 import pandas as pd
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -165,10 +166,23 @@ class FloodMonitoringDashboard:
             # Load environment variables
             load_dotenv()
             
+            # Debug: Print if secrets are loaded
+            if "SUPABASE_URL" in st.secrets and "SUPABASE_KEY" in st.secrets:
+                st.sidebar.success("Supabase credentials loaded successfully")
+            else:
+                st.sidebar.error("Supabase credentials not found")
+                
             # Initialize Supabase client
             supabase_url = st.secrets["SUPABASE_URL"]
             supabase_key = st.secrets["SUPABASE_KEY"]
             self.supabase = create_client(supabase_url, supabase_key)
+            
+            # Test the connection
+            test_response = self.supabase.table('river_data').select('*').limit(1).execute()
+            if test_response.data:
+                st.sidebar.success("Supabase connection successful")
+            else:
+                st.sidebar.warning("Connected to Supabase but no data found")
             
             # Initialize components
             self.predictor = FloodPredictionSystem()
@@ -194,34 +208,78 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
 
-    def fetch_river_data(self, days_back=90):
-        """Fetch river monitoring data with fallback to simulated data"""
+    def fetch_river_data(self, days_back=7):
+        """Fetch river monitoring data from a real data source with fallback to simulated data"""
         try:
-            end_date = datetime.now(pytz.UTC)
-            start_date = end_date - timedelta(days=days_back)
-            
-            if self.supabase is None:
-                st.warning("Database connection not available. Using simulated data.")
-                return self._generate_sample_data(days_back)
+            # First try to fetch from Supabase
+            if self.supabase is not None:
+                end_date = datetime.now(pytz.UTC)
+                start_date = end_date - timedelta(days=days_back)
                 
-            response = self.supabase.table('river_data')\
-                .select('*')\
-                .gte('river_timestamp', start_date.isoformat())\
-                .lte('river_timestamp', end_date.isoformat())\
-                .order('river_timestamp', desc=True)\
-                .execute()
+                response = self.supabase.table('river_data')\
+                    .select('*')\
+                    .gte('river_timestamp', start_date.isoformat())\
+                    .lte('river_timestamp', end_date.isoformat())\
+                    .order('river_timestamp', desc=True)\
+                    .execute()
 
-            if not response.data:
-                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
-                return self._generate_sample_data(days_back)
-
-            df = pd.DataFrame(response.data)
-            df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-            return df
-
+                if response.data:
+                    st.sidebar.success("Using real-time data from Supabase")
+                    df = pd.DataFrame(response.data)
+                    df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
+                    return df
+            
+            # Try to fetch from UK Environment Agency API
+            try:
+                st.sidebar.info("Attempting to fetch data from Environment Agency API")
+                
+                # List of stations to query - these are example IDs
+                stations = {
+                    'Rochdale': '69803',
+                    'Manchester Racecourse': '690510',
+                    'Bury Ground': '690160'
+                }
+                
+                # Collect data for each station
+                all_data = []
+                
+                for station_name, station_id in stations.items():
+                    # UK Environment Agency API endpoint
+                    url = f"https://environment.data.gov.uk/flood-monitoring/id/stations/{station_id}/readings?_limit=1000&_sorted"
+                    
+                    response = requests.get(url)
+                    
+                    if response.status_code == 200:
+                        # Parse the JSON response
+                        station_data = response.json()
+                        
+                        # Extract the readings
+                        readings = station_data.get('items', [])
+                        
+                        # Convert to DataFrame format
+                        for reading in readings:
+                            all_data.append({
+                                'river_timestamp': pd.to_datetime(reading.get('dateTime')),
+                                'location_name': station_name,
+                                'river_level': reading.get('value', 0),
+                                'rainfall': 0,  # Might need to be fetched separately
+                                'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
+                            })
+                
+                if all_data:
+                    df = pd.DataFrame(all_data)
+                    st.sidebar.success(f"Successfully fetched {len(df)} records from Environment Agency API")
+                    return df
+                    
+            except Exception as api_error:
+                st.sidebar.error(f"API data retrieval error: {str(api_error)}")
+        
         except Exception as e:
-            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
-            return self._generate_sample_data(days_back)
+            st.sidebar.error(f"Data retrieval error: {str(e)}")
+        
+        # If all else fails, use simulated data as a last resort
+        st.sidebar.warning("Using simulated data as real-time data sources are unavailable")
+        return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
@@ -1197,6 +1255,15 @@ def main():
 
     # Initialize dashboard
     dashboard = FloodMonitoringDashboard()
+    
+    # Add a toggle for real vs. simulated data
+    use_real_data = st.sidebar.checkbox("Use real-time data", value=True)
+
+    # Fetch river data
+    if use_real_data:
+        river_data = dashboard.fetch_river_data()
+    else:
+        river_data = dashboard._generate_sample_data()
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
