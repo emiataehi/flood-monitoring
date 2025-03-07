@@ -166,24 +166,9 @@ class FloodMonitoringDashboard:
             load_dotenv()
             
             # Initialize Supabase client
-            supabase_url = st.secrets["connections"]["supabase"]["url"]
-            supabase_key = st.secrets["connections"]["supabase"]["key"]
+            supabase_url = st.secrets["SUPABASE_URL"]
+            supabase_key = st.secrets["SUPABASE_KEY"]
             self.supabase = create_client(supabase_url, supabase_key)
-            
-            # Load Supabase credentials safely
-            supabase_url = st.secrets["connections"]["supabase"]["url"]
-            supabase_key = st.secrets["connections"]["supabase"]["key"]
-
-            if not supabase_url or not supabase_key:
-                st.error("❌ Supabase credentials are missing. Check your Streamlit secrets.")
-                self.supabase = None
-            else:
-                self.supabase = create_client(supabase_url, supabase_key)
-                st.sidebar.success("✅ Connected to Supabase!")
-        except Exception as e:
-            st.error(f"❌ Failed to connect to Supabase: {str(e)}")
-            self.supabase = None
-
             
             # Initialize components
             self.predictor = FloodPredictionSystem()
@@ -210,19 +195,15 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=90):
-        """Fetch river monitoring data with improved error handling"""
+        """Fetch river monitoring data with fallback to simulated data"""
         try:
             end_date = datetime.now(pytz.UTC)
             start_date = end_date - timedelta(days=days_back)
             
-            # Verify Supabase connection
             if self.supabase is None:
-                st.error("Database connection not available. Check your Supabase credentials.")
+                st.warning("Database connection not available. Using simulated data.")
                 return self._generate_sample_data(days_back)
                 
-            # Debug connection info
-            st.sidebar.info("Attempting to connect to database...")
-            
             response = self.supabase.table('river_data')\
                 .select('*')\
                 .gte('river_timestamp', start_date.isoformat())\
@@ -231,27 +212,17 @@ class FloodMonitoringDashboard:
                 .execute()
 
             if not response.data:
-                st.warning(f"No river data found for the last {days_back} days. Using simulated data.")
+                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
                 return self._generate_sample_data(days_back)
-            
-            if not response.data:
-                st.error("❌ No data retrieved from Supabase.")
-            df = pd.DataFrame(response.data)
 
-            # Debugging: Show fetched data
-            st.write("✅ Retrieved Data Sample:", df.head())
-
-            
-            st.sidebar.success("Successfully retrieved data from database!")
             df = pd.DataFrame(response.data)
             df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
             return df
 
         except Exception as e:
-            st.error(f"Data retrieval error: {str(e)}. Using simulated data.")
+            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
             return self._generate_sample_data(days_back)
 
-    
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
         # Use current time as the end date
@@ -342,15 +313,6 @@ class FloodMonitoringDashboard:
                     
                     # Analyze trend on recent data
                     recent_data = station_data.head(24)  # Last 24 hours
-                    # Debugging: Check if data is empty or missing columns
-                    if recent_data.empty:
-                        st.error(f"❌ No recent data found for {station}. Check database query.")
-                        return
-                    elif 'river_level' not in recent_data.columns:
-                        st.error(f"❌ 'river_level' column is missing for {station}.")
-                        return
-
-                    st.write(f"📊 Debugging: Recent Data for {station}", recent_data.head())
                     trend_direction, trend_rate, confidence = self.predictor.analyze_trend(recent_data)
                     risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                     
@@ -834,7 +796,117 @@ class FloodMonitoringDashboard:
                     st.plotly_chart(fig, use_container_width=True)
                     st.write(f"Forecast Confidence: {forecast['confidence']}")
                     
+    def generate_report(self, data):
+        """Generate comprehensive flood monitoring report"""
+        st.header("Flood Monitoring Report")
+        
+        if data is None:
+            st.warning("No data available for report generation")
+            return
 
+        # Add timestamp
+        st.markdown(f"*Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+
+        # Current Status Overview
+        st.subheader("Current Status Overview")
+        status_df = []
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, _ = self.predictor.get_risk_level(current_level, station)
+            
+            status_df.append({
+                'Station': station,
+                'Current Level': f"{current_level:.3f}m",
+                'Risk Level': risk_level,
+                'Status': 'Above Threshold' if risk_level in ['MODERATE', 'HIGH'] else 'Normal'
+            })
+        
+        st.dataframe(pd.DataFrame(status_df), hide_index=True)
+
+        # Trend Analysis
+        st.subheader("24-Hour Trend Analysis")
+        fig = go.Figure()
+        
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station].head(24)
+            fig.add_trace(go.Scatter(
+                x=station_data['river_timestamp'],
+                y=station_data['river_level'],
+                name=station,
+                mode='lines+markers'
+            ))
+        
+        fig.update_layout(
+            title="River Levels - Last 24 Hours",
+            xaxis_title="Time",
+            yaxis_title="River Level (m)",
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Risk Assessment Summary
+        st.subheader("Risk Assessment Summary")
+        risk_cols = st.columns(3)
+        with risk_cols[0]:
+            high_risk = sum(1 for s in status_df if s['Risk Level'] == 'HIGH')
+            st.metric("High Risk Stations", high_risk, 
+                     delta="Critical" if high_risk > 0 else "Normal")
+        
+        with risk_cols[1]:
+            moderate_risk = sum(1 for s in status_df if s['Risk Level'] == 'MODERATE')
+            st.metric("Moderate Risk Stations", moderate_risk,
+                     delta="Warning" if moderate_risk > 0 else "Normal")
+        
+        with risk_cols[2]:
+            low_risk = sum(1 for s in status_df if s['Risk Level'] == 'LOW')
+            st.metric("Low Risk Stations", low_risk,
+                     delta="Normal" if low_risk == len(status_df) else "Some Risks Present")
+
+        # Recent Alerts
+        st.subheader("Recent Alert History")
+        recent_alerts = self.alert_system.get_recent_alerts(days=1)
+        if not recent_alerts.empty:
+            recent_alerts['timestamp'] = pd.to_datetime(recent_alerts['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+            st.dataframe(recent_alerts)
+        else:
+            st.info("No alerts in the past 24 hours")
+
+        # Export Options
+        st.subheader("Export Options")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📊 Export Data as CSV"):
+                csv = data.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name=f"flood_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime='text/csv'
+                )
+        
+        with col2:
+            if st.button("📄 Export Summary Report"):
+                # Create summary report
+                report = f"""Flood Monitoring Summary Report
+    Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+    Current Status:
+    {"="*50}"""
+                for station in status_df:
+                    report += f"\n{station['Station']}:"
+                    report += f"\n- Current Level: {station['Current Level']}"
+                    report += f"\n- Risk Level: {station['Risk Level']}"
+                    report += f"\n- Status: {station['Status']}\n"
+                
+                st.download_button(
+                    label="Download Report",
+                    data=report,
+                    file_name=f"flood_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime='text/plain'
+                )
     def generate_report(self, data):
         """Generate flood monitoring report"""
         st.header("Flood Monitoring Report")
@@ -1116,29 +1188,6 @@ class FloodMonitoringDashboard:
         """)
     
     
-    def __init__(self):
-        """Initialize dashboard components with improved error handling"""
-        try:
-            # Load environment variables
-            load_dotenv()
-            
-            # Initialize Supabase client with better error handling
-            try:
-                supabase_url = st.secrets["https://thoqlquxaemyyhmpiwzt.supabase.co"]
-                supabase_key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRob3FscXV4YWVteXlobXBpd3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkwNDUzMzgsImV4cCI6MjA1NDYyMTMzOH0.OUPHc37SgIvAfF32xPkulSYF2CGc3hJSADuLKgT9Zvo"]
-                self.supabase = create_client(supabase_url, supabase_key)
-                st.sidebar.success("Supabase client initialized")
-            except Exception as db_error:
-                st.sidebar.error(f"Database connection error: {str(db_error)}")
-                self.supabase = None
-            
-            # Initialize other components
-            # (Your existing initialization code)
-        
-        except Exception as e:
-            st.error(f"Failed to initialize dashboard: {e}")
-            self.supabase = None
-    
 def main():
     # Page configuration
     st.set_page_config(
@@ -1149,13 +1198,6 @@ def main():
 
     # Initialize dashboard
     dashboard = FloodMonitoringDashboard()
-    
-    # Add refresh interval selector
-    refresh_interval = st.sidebar.selectbox(
-        "Auto-refresh interval", 
-        [None, 30, 60, 300, 600, 1800], 
-        format_func=lambda x: "No auto-refresh" if x is None else f"Every {x} seconds"
-    )
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
@@ -1196,11 +1238,6 @@ def main():
     with tab10:
         dashboard.show_mobile_dashboard(river_data)    
 
-    # Auto-refresh mechanism
-    if refresh_interval:
-        time.sleep(1)  # Short delay to prevent immediate refresh
-        st.experimental_rerun()
-    
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
 
