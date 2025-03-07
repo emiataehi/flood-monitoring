@@ -195,38 +195,33 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=90):
-    """Fetch river monitoring data with improved error handling"""
-    try:
-        end_date = datetime.now(pytz.UTC)
-        start_date = end_date - timedelta(days=days_back)
-        
-        # Verify Supabase connection
-        if self.supabase is None:
-            st.error("Database connection not available. Check your Supabase credentials.")
-            return self._generate_sample_data(days_back)
+        """Fetch river monitoring data with fallback to simulated data"""
+        try:
+            end_date = datetime.now(pytz.UTC)
+            start_date = end_date - timedelta(days=days_back)
             
-        # Debug connection info
-        st.sidebar.info("Attempting to connect to database...")
-        
-        response = self.supabase.table('river_data')\
-            .select('*')\
-            .gte('river_timestamp', start_date.isoformat())\
-            .lte('river_timestamp', end_date.isoformat())\
-            .order('river_timestamp', desc=True)\
-            .execute()
+            if self.supabase is None:
+                st.warning("Database connection not available. Using simulated data.")
+                return self._generate_sample_data(days_back)
+                
+            response = self.supabase.table('river_data')\
+                .select('*')\
+                .gte('river_timestamp', start_date.isoformat())\
+                .lte('river_timestamp', end_date.isoformat())\
+                .order('river_timestamp', desc=True)\
+                .execute()
 
-        if not response.data:
-            st.warning(f"No river data found for the last {days_back} days. Using simulated data.")
+            if not response.data:
+                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
+                return self._generate_sample_data(days_back)
+
+            df = pd.DataFrame(response.data)
+            df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
+            return df
+
+        except Exception as e:
+            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
             return self._generate_sample_data(days_back)
-
-        st.sidebar.success("Successfully retrieved data from database!")
-        df = pd.DataFrame(response.data)
-        df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-        return df
-
-    except Exception as e:
-        st.error(f"Data retrieval error: {str(e)}. Using simulated data.")
-        return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
