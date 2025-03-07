@@ -227,17 +227,18 @@ class FloodMonitoringDashboard:
                     # Quietly handle success without sidebar messages
                     df = pd.DataFrame(response.data)
                     df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
+                    st.write("✅ Stations from Supabase:", df['location_name'].unique())  # Shows all stations
                     return df
             
             # Try to fetch from UK Environment Agency API
             try:
                 # List of stations to query - these are example IDs
                 stations = {
-                    'Rochdale': '69203',
+                    'Rochdale': '690203',
                     'Manchester Racecourse': '690510',
                     'Bury Ground': '690160'
                 }
-                st.write("🔍 Attempting to fetch data for stations:", list(stations.keys()))
+                
                 # Collect data for each station
                 all_data = []
                 
@@ -245,7 +246,6 @@ class FloodMonitoringDashboard:
                     # UK Environment Agency API endpoint
                     url = f"https://environment.data.gov.uk/flood-monitoring/id/stations/{station_id}/readings?_limit=1000&_sorted"
                     
-                    st.write(f"🔗 API URL for {station_name}: {url}")
                     response = requests.get(url)
                     
                     if response.status_code == 200:
@@ -254,12 +254,6 @@ class FloodMonitoringDashboard:
                         
                         # Extract the readings
                         readings = station_data.get('items', [])
-                        st.write(f"✅ {station_name} API Data Count: {len(readings)}")
-                        
-                        # Debug the first reading if available
-                        if readings:
-                            st.write(f"📝 First reading for {station_name}: {readings[0]}")
-
                         
                         # Convert to DataFrame format
                         for reading in readings:
@@ -270,34 +264,20 @@ class FloodMonitoringDashboard:
                                 'rainfall': 0,  # Might need to be fetched separately
                                 'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
                             })
-                            
-                    else:
-                        # Add this line to print error message
-                        st.write(f"❌ Failed to fetch data for {station_name}: Status {response.status_code}")
-      
+                
                 if all_data:
-                   # Debug the stations we actually got data for
-                    stations_with_data = list(set(item['location_name'] for item in all_data))
-                    st.write("🏢 Stations with data:", stations_with_data)
-                    
                     df = pd.DataFrame(all_data)
                     return df
                     
             except Exception:
-                # Add this line to print the exception
-                st.write(f"❌ Error fetching from API: {str(e)}")
-    
                 # Silent error handling - no sidebar message
                 pass
         
         except Exception:
-            # Add this line to print the exception
-            st.write(f"❌ Error in fetch_river_data: {str(e)}")
             # Silent error handling - no sidebar message
             pass
         
         # If all else fails, use simulated data as a last resort
-        st.write("⚠️ Falling back to simulated data")
         return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
@@ -1335,10 +1315,12 @@ def main():
         river_data = dashboard.fetch_river_data(days_back=days_back)
     else:
         river_data = dashboard._generate_sample_data(days_back=days_back)
+    st.write("✅ Stations BEFORE Filtering:", river_data['location_name'].unique())
 
     # Filter data for selected stations if needed
     if selected_stations and len(selected_stations) < len(all_stations):
         river_data = river_data[river_data['location_name'].isin(selected_stations)]
+    st.write("✅ Stations AFTER Filtering:", river_data['location_name'].unique())
 
     # Display title with stats
     st.title("Comprehensive Flood Monitoring Dashboard")
