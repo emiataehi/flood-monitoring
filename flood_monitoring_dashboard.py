@@ -1263,23 +1263,6 @@ class FloodMonitoringDashboard:
         - **Local Council:** Contact your local authority
         """)
    
-def completely_hide_sidebar():
-    """Hide the sidebar completely using CSS"""
-    st.markdown("""
-    <style>
-        /* Hide the sidebar completely */
-        [data-testid="stSidebar"] {
-            display: none !important;
-        }
-        
-        /* Ensure main content takes full width */
-        .main .block-container {
-            max-width: 100%;
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-    </style>
-    """, unsafe_allow_html=True)
    
 def main():
     # Page configuration
@@ -1287,10 +1270,7 @@ def main():
         page_title="Flood Monitoring Dashboard",
         layout="wide"
     )
-    
-    # Apply the function to completely hide the sidebar
-    completely_hide_sidebar()
-    
+
     # Display title
     st.title("Comprehensive Flood Monitoring Dashboard")
     
