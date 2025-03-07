@@ -227,14 +227,13 @@ class FloodMonitoringDashboard:
                     # Quietly handle success without sidebar messages
                     df = pd.DataFrame(response.data)
                     df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-                    st.write("✅ Stations from Supabase:", df['location_name'].unique())  # Shows all stations
                     return df
             
             # Try to fetch from UK Environment Agency API
             try:
                 # List of stations to query - these are example IDs
                 stations = {
-                    'Rochdale': '69803',
+                    'Rochdale': '69203',
                     'Manchester Racecourse': '690510',
                     'Bury Ground': '690160'
                 }
@@ -1317,12 +1316,10 @@ def main():
         river_data = dashboard.fetch_river_data(days_back=days_back)
     else:
         river_data = dashboard._generate_sample_data(days_back=days_back)
-    st.write("✅ Stations BEFORE Filtering:", river_data['location_name'].unique())
 
     # Filter data for selected stations if needed
     if selected_stations and len(selected_stations) < len(all_stations):
         river_data = river_data[river_data['location_name'].isin(selected_stations)]
-    st.write("✅ Stations AFTER Filtering:", river_data['location_name'].unique())
 
     # Display title with stats
     st.title("Comprehensive Flood Monitoring Dashboard")
