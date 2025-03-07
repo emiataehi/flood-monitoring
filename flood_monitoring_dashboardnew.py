@@ -170,6 +170,21 @@ class FloodMonitoringDashboard:
             supabase_key = st.secrets["SUPABASE_KEY"]
             self.supabase = create_client(supabase_url, supabase_key)
             
+            # Load Supabase credentials safely
+            supabase_url = st.secrets.get("SUPABASE_URL", None)
+            supabase_key = st.secrets.get("SUPABASE_KEY", None)
+
+            if not supabase_url or not supabase_key:
+                st.error("❌ Supabase credentials are missing. Check your Streamlit secrets.")
+                self.supabase = None
+            else:
+                self.supabase = create_client(supabase_url, supabase_key)
+                st.sidebar.success("✅ Connected to Supabase!")
+        except Exception as e:
+            st.error(f"❌ Failed to connect to Supabase: {str(e)}")
+            self.supabase = None
+
+            
             # Initialize components
             self.predictor = FloodPredictionSystem()
             self.watershed = WatershedAnalysis()
