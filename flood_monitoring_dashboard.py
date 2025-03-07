@@ -601,9 +601,7 @@ class FloodMonitoringDashboard:
                 st.write(f"**Timestamp:** {station_data['river_timestamp']}")
             else:  # If there is NO data
                 st.warning(f"No data available for {selected_station}.")
-            st.write(f"**River Level:** {station_data['river_level']:.3f}m")
-            st.write(f"**Rainfall:** {station_data['rainfall']:.3f}mm")
-            st.write(f"**Timestamp:** {station_data['river_timestamp']}")
+
 
     def show_geospatial_view(self, data):
         """Display geospatial view tab"""
