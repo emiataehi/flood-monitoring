@@ -195,33 +195,38 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=90):
-        """Fetch river monitoring data with fallback to simulated data"""
-        try:
-            end_date = datetime.now(pytz.UTC)
-            start_date = end_date - timedelta(days=days_back)
-            
-            if self.supabase is None:
-                st.warning("Database connection not available. Using simulated data.")
-                return self._generate_sample_data(days_back)
-                
-            response = self.supabase.table('river_data')\
-                .select('*')\
-                .gte('river_timestamp', start_date.isoformat())\
-                .lte('river_timestamp', end_date.isoformat())\
-                .order('river_timestamp', desc=True)\
-                .execute()
-
-            if not response.data:
-                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
-                return self._generate_sample_data(days_back)
-
-            df = pd.DataFrame(response.data)
-            df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-            return df
-
-        except Exception as e:
-            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
+    """Fetch river monitoring data with improved error handling"""
+    try:
+        end_date = datetime.now(pytz.UTC)
+        start_date = end_date - timedelta(days=days_back)
+        
+        # Verify Supabase connection
+        if self.supabase is None:
+            st.error("Database connection not available. Check your Supabase credentials.")
             return self._generate_sample_data(days_back)
+            
+        # Debug connection info
+        st.sidebar.info("Attempting to connect to database...")
+        
+        response = self.supabase.table('river_data')\
+            .select('*')\
+            .gte('river_timestamp', start_date.isoformat())\
+            .lte('river_timestamp', end_date.isoformat())\
+            .order('river_timestamp', desc=True)\
+            .execute()
+
+        if not response.data:
+            st.warning(f"No river data found for the last {days_back} days. Using simulated data.")
+            return self._generate_sample_data(days_back)
+
+        st.sidebar.success("Successfully retrieved data from database!")
+        df = pd.DataFrame(response.data)
+        df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
+        return df
+
+    except Exception as e:
+        st.error(f"Data retrieval error: {str(e)}. Using simulated data.")
+        return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
@@ -624,109 +629,109 @@ class FloodMonitoringDashboard:
             with summary_cols[2]:
                 st.metric("Average Network Risk", f"{avg_risk:.1f}%")
 
-def show_alerts(self, data):
-    """Display flood alerts tab with enhanced alert system"""
-    st.header("Flood Alerts and Warnings")
-    if data is None:
-        st.warning("No data available for generating alerts")
-        return
+    def show_alerts(self, data):
+        """Display flood alerts tab with enhanced alert system"""
+        st.header("Flood Alerts and Warnings")
+        if data is None:
+            st.warning("No data available for generating alerts")
+            return
 
-    # Create tabs for current alerts and history
-    current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
-    
-    with current_tab:
-        # Generate and display alerts for each station
-        for station in data['location_name'].unique():
-            station_data = data[data['location_name'] == station]
-            current_level = station_data['river_level'].iloc[0]
-            
-            # Use enhanced alert system to generate alert
-            alert = self.enhanced_alert_system.generate_alert(station, current_level)
-            
-            # Send notifications
-            notification_channels = self.enhanced_alert_system.send_notifications(alert)
-            
-            # Display alert with styling based on alert level
-            alert_styling = {
-                'CRITICAL': (st.error, "🚨", "red"),
-                'HIGH': (st.error, "🚨", "red"),
-                'WARNING': (st.warning, "⚠️", "orange"),
-                'MONITOR': (st.info, "ℹ️", "yellow"),
-                'NORMAL': (st.success, "✅", "green")
-            }
-            
-            # Get appropriate styling
-            alert_display, icon, color = alert_styling.get(
-                alert['alert_level'], 
-                (st.info, "ℹ️", "blue")
-            )
-            
-            # Display alert
-            alert_display(f"{icon} **{alert['alert_level']} FLOOD RISK** at {station}")
-            
-            # Metrics and additional information
-            st.metric(
-                label=f"{station} Current Level",
-                value=f"{current_level:.3f}m",
-                delta=f"{alert['alert_level']} Risk"
-            )
-            
-            # Additional alert details
-            with st.expander("Alert Details"):
-                st.write(f"**Description:** {alert['description']}")
-                st.write(f"**Notification Channels:** {', '.join(notification_channels) or 'No channels notified'}")
-    
-    with history_tab:
-        # Retrieve and display recent alerts
-        recent_alerts = self.enhanced_alert_system.get_recent_alerts(days=7)
+        # Create tabs for current alerts and history
+        current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
         
-        if not recent_alerts.empty:
-            st.subheader("Recent Alerts (Last 7 Days)")
-            
-            # Format the dataframe for display
-            display_df = recent_alerts.copy()
-            display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-            display_df['current_level'] = display_df['current_level'].round(3)
-            
-            # Highlight rows based on alert level
-            def color_alert_levels(row):
-                if row['alert_level'] == 'CRITICAL':
-                    return ['background-color: #ffcccc']*len(row)
-                elif row['alert_level'] == 'HIGH':
-                    return ['background-color: #ffeeee']*len(row)
-                elif row['alert_level'] == 'WARNING':
-                    return ['background-color: #fff2cc']*len(row)
-                return [''] * len(row)
-            
-            # Display dataframe with conditional formatting
-            st.dataframe(
-                display_df.style.apply(color_alert_levels, axis=1),
-                hide_index=True
-            )
-        else:
-            st.info("No alerts in the past 7 days")
+        with current_tab:
+            # Generate and display alerts for each station
+            for station in data['location_name'].unique():
+                station_data = data[data['location_name'] == station]
+                current_level = station_data['river_level'].iloc[0]
+                
+                # Use enhanced alert system to generate alert
+                alert = self.enhanced_alert_system.generate_alert(station, current_level)
+                
+                # Send notifications
+                notification_channels = self.enhanced_alert_system.send_notifications(alert)
+                
+                # Display alert with styling based on alert level
+                alert_styling = {
+                    'CRITICAL': (st.error, "🚨", "red"),
+                    'HIGH': (st.error, "🚨", "red"),
+                    'WARNING': (st.warning, "⚠️", "orange"),
+                    'MONITOR': (st.info, "ℹ️", "yellow"),
+                    'NORMAL': (st.success, "✅", "green")
+                }
+                
+                # Get appropriate styling
+                alert_display, icon, color = alert_styling.get(
+                    alert['alert_level'], 
+                    (st.info, "ℹ️", "blue")
+                )
+                
+                # Display alert
+                alert_display(f"{icon} **{alert['alert_level']} FLOOD RISK** at {station}")
+                
+                # Metrics and additional information
+                st.metric(
+                    label=f"{station} Current Level",
+                    value=f"{current_level:.3f}m",
+                    delta=f"{alert['alert_level']} Risk"
+                )
+                
+                # Additional alert details
+                with st.expander("Alert Details"):
+                    st.write(f"**Description:** {alert['description']}")
+                    st.write(f"**Notification Channels:** {', '.join(notification_channels) or 'No channels notified'}")
         
-        # Emergency guidance section
-        st.subheader("Emergency Guidance")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            ### For Low to Moderate Risk
-            - Stay informed
-            - Monitor local news
-            - Prepare emergency kit
-            - Check local flood warnings
-            """)
-        
-        with col2:
-            st.markdown("""
-            ### For High to Critical Risk
-            - Prepare for immediate evacuation
-            - Move to higher ground
-            - Protect critical belongings
-            - Follow official emergency guidance
-            """)
+        with history_tab:
+            # Retrieve and display recent alerts
+            recent_alerts = self.enhanced_alert_system.get_recent_alerts(days=7)
+            
+            if not recent_alerts.empty:
+                st.subheader("Recent Alerts (Last 7 Days)")
+                
+                # Format the dataframe for display
+                display_df = recent_alerts.copy()
+                display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
+                display_df['current_level'] = display_df['current_level'].round(3)
+                
+                # Highlight rows based on alert level
+                def color_alert_levels(row):
+                    if row['alert_level'] == 'CRITICAL':
+                        return ['background-color: #ffcccc']*len(row)
+                    elif row['alert_level'] == 'HIGH':
+                        return ['background-color: #ffeeee']*len(row)
+                    elif row['alert_level'] == 'WARNING':
+                        return ['background-color: #fff2cc']*len(row)
+                    return [''] * len(row)
+                
+                # Display dataframe with conditional formatting
+                st.dataframe(
+                    display_df.style.apply(color_alert_levels, axis=1),
+                    hide_index=True
+                )
+            else:
+                st.info("No alerts in the past 7 days")
+            
+            # Emergency guidance section
+            st.subheader("Emergency Guidance")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                ### For Low to Moderate Risk
+                - Stay informed
+                - Monitor local news
+                - Prepare emergency kit
+                - Check local flood warnings
+                """)
+            
+            with col2:
+                st.markdown("""
+                ### For High to Critical Risk
+                - Prepare for immediate evacuation
+                - Move to higher ground
+                - Protect critical belongings
+                - Follow official emergency guidance
+                """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
