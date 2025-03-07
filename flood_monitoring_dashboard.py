@@ -57,9 +57,9 @@ class FloodPredictionSystem:
                 'critical': 0.200
             },
             'Manchester Racecourse': {
-                'warning': 0.982,
-                'alert': 0.988,
-                'critical': 0.995
+                'warning': 0.970,
+                'alert': 0.982,
+                'critical': 0.985
             },
             'Bury Ground': {
                 'warning': 0.325,
