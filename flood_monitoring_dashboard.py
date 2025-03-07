@@ -1186,7 +1186,8 @@ class FloodMonitoringDashboard:
         - **Flood Helpline:** 0345 988 1188
         - **Local Council:** Contact your local authority
         """)
-     def __init__(self):
+        
+    def __init__(self):
         """Initialize dashboard components with improved error handling"""
         try:
             # Load environment variables
