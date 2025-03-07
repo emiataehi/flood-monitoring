@@ -84,14 +84,17 @@ class FloodPredictionSystem:
         return trend_direction, level_trend, confidence
     
     def get_risk_level(self, current_level, station):
-        """Get risk level based on analyzed thresholds"""
+        """Get risk level based on analyzed thresholds with more granularity"""
         thresholds = self.thresholds[station]
         
-        if current_level > thresholds['critical']:
+        if current_level >= thresholds['critical']:
             return "HIGH", "red"
-        elif current_level > thresholds['alert']:
-            return "MODERATE", "yellow"
-        return "LOW", "green"
+        elif current_level >= thresholds['alert']:
+            return "MODERATE", "orange"
+        elif current_level >= thresholds['warning']:
+            return "LOW", "yellow"
+        else:
+            return "NORMAL", "green"
 
 class AdvancedAnalytics:
     def __init__(self):
