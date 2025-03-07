@@ -195,15 +195,19 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=90):
-        """Fetch river monitoring data with fallback to simulated data"""
+        """Fetch river monitoring data with improved error handling"""
         try:
             end_date = datetime.now(pytz.UTC)
             start_date = end_date - timedelta(days=days_back)
             
+            # Verify Supabase connection
             if self.supabase is None:
-                st.warning("Database connection not available. Using simulated data.")
+                st.error("Database connection not available. Check your Supabase credentials.")
                 return self._generate_sample_data(days_back)
                 
+            # Debug connection info
+            st.sidebar.info("Attempting to connect to database...")
+            
             response = self.supabase.table('river_data')\
                 .select('*')\
                 .gte('river_timestamp', start_date.isoformat())\
@@ -212,15 +216,16 @@ class FloodMonitoringDashboard:
                 .execute()
 
             if not response.data:
-                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
+                st.warning(f"No river data found for the last {days_back} days. Using simulated data.")
                 return self._generate_sample_data(days_back)
 
+            st.sidebar.success("Successfully retrieved data from database!")
             df = pd.DataFrame(response.data)
             df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
             return df
 
         except Exception as e:
-            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
+            st.error(f"Data retrieval error: {str(e)}. Using simulated data.")
             return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
@@ -1198,6 +1203,13 @@ def main():
 
     # Initialize dashboard
     dashboard = FloodMonitoringDashboard()
+    
+    # Add refresh interval selector
+    refresh_interval = st.sidebar.selectbox(
+        "Auto-refresh interval", 
+        [None, 30, 60, 300, 600, 1800], 
+        format_func=lambda x: "No auto-refresh" if x is None else f"Every {x} seconds"
+    )
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
@@ -1238,8 +1250,13 @@ def main():
     with tab10:
         dashboard.show_mobile_dashboard(river_data)    
 
+    # Auto-refresh mechanism
+    if refresh_interval:
+        time.sleep(1)  # Short delay to prevent immediate refresh
+        st.experimental_rerun()
+    
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
-    main()	
+    main()		
