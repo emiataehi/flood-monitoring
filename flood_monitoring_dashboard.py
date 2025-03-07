@@ -194,43 +194,34 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
 
-    def fetch_real_time_river_data(self):
-        """Fetch the latest river data from the database for real-time monitoring."""
-        
+    def fetch_river_data(self, days_back=90):
+        """Fetch river monitoring data with fallback to simulated data"""
         try:
-            # Fetch the current date and time
             end_date = datetime.now(pytz.UTC)
+            start_date = end_date - timedelta(days=days_back)
             
-            # Check for a valid Supabase connection
             if self.supabase is None:
                 st.warning("Database connection not available. Using simulated data.")
-                return self._generate_sample_data(days_back=1)  # You can generate data for just one day for testing
-            
-            # Query Supabase for the most recent river data (the latest entry based on river_timestamp)
+                return self._generate_sample_data(days_back)
+                
             response = self.supabase.table('river_data')\
                 .select('*')\
+                .gte('river_timestamp', start_date.isoformat())\
                 .lte('river_timestamp', end_date.isoformat())\
                 .order('river_timestamp', desc=True)\
-                .limit(1)\
                 .execute()
 
-            # Handle case where no data is found
             if not response.data:
-                st.warning(f"No river data found. Using simulated data.")
-                return self._generate_sample_data(days_back=1)  # Using simulated data for the latest 1 day
+                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
+                return self._generate_sample_data(days_back)
 
-            # Convert the response data into a DataFrame and ensure proper datetime format
             df = pd.DataFrame(response.data)
             df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-
-            # Return the DataFrame with the most recent data
             return df
 
         except Exception as e:
-            # Log any error during the data retrieval process and use simulated data
-            st.warning(f"Real-time data retrieval error: {str(e)}. Using simulated data.")
-            return self._generate_sample_data(days_back=1)  # Generate sample data for 1 day
-
+            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
+            return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
@@ -1195,7 +1186,6 @@ class FloodMonitoringDashboard:
         - **Flood Helpline:** 0345 988 1188
         - **Local Council:** Contact your local authority
         """)
-        
     
 def main():
     # Page configuration
