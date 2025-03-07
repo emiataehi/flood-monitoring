@@ -166,13 +166,13 @@ class FloodMonitoringDashboard:
             load_dotenv()
             
             # Initialize Supabase client
-            supabase_url = st.secrets["SUPABASE_URL"]
-            supabase_key = st.secrets["SUPABASE_KEY"]
+            supabase_url = st.secrets["connections"]["supabase"]["url"]
+            supabase_key = st.secrets["connections"]["supabase"]["key"]
             self.supabase = create_client(supabase_url, supabase_key)
             
             # Load Supabase credentials safely
-            supabase_url = st.secrets.get("SUPABASE_URL", None)
-            supabase_key = st.secrets.get("SUPABASE_KEY", None)
+            supabase_url = st.secrets["connections"]["supabase"]["url"]
+            supabase_key = st.secrets["connections"]["supabase"]["key"]
 
             if not supabase_url or not supabase_key:
                 st.error("❌ Supabase credentials are missing. Check your Streamlit secrets.")
