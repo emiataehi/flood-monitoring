@@ -253,7 +253,6 @@ class FloodMonitoringDashboard:
                         
                         # Extract the readings
                         readings = station_data.get('items', [])
-                        st.write(f"✅ {station_name} API Data Count:", len(readings))  # Shows number of readings per station
 
                         
                         # Convert to DataFrame format
