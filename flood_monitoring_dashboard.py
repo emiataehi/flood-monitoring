@@ -272,9 +272,9 @@ class FloodMonitoringDashboard:
                             })
                             
                     else:
-                    # Add this line to print error message
-                    st.write(f"❌ Failed to fetch data for {station_name}: Status {response.status_code}")
-  
+                        # Add this line to print error message
+                        st.write(f"❌ Failed to fetch data for {station_name}: Status {response.status_code}")
+      
                 if all_data:
                    # Debug the stations we actually got data for
                     stations_with_data = list(set(item['location_name'] for item in all_data))
