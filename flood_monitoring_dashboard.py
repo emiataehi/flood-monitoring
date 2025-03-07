@@ -227,7 +227,7 @@ class FloodMonitoringDashboard:
                     # Quietly handle success without sidebar messages
                     df = pd.DataFrame(response.data)
                     df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-                    st.write("✅ Raw Data from API/Database:", df.head())  # Shows the first few rows
+                    st.write("✅ Stations from Supabase:", df['location_name'].unique())  # Shows all stations
                     return df
             
             # Try to fetch from UK Environment Agency API
@@ -254,6 +254,8 @@ class FloodMonitoringDashboard:
                         
                         # Extract the readings
                         readings = station_data.get('items', [])
+                        st.write(f"✅ {station_name} API Data Count:", len(readings))  # Shows number of readings per station
+
                         
                         # Convert to DataFrame format
                         for reading in readings:
