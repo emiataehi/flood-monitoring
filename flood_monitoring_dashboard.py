@@ -227,7 +227,7 @@ class FloodMonitoringDashboard:
                     # Quietly handle success without sidebar messages
                     df = pd.DataFrame(response.data)
                     df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
-                st.write("✅ Raw Data from API/Database:", df.head())  # Shows the first few rows
+                    st.write("✅ Raw Data from API/Database:", df.head())  # Shows the first few rows
                     return df
             
             # Try to fetch from UK Environment Agency API
