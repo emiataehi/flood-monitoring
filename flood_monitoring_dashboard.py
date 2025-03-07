@@ -1315,12 +1315,10 @@ def main():
         river_data = dashboard.fetch_river_data(days_back=days_back)
     else:
         river_data = dashboard._generate_sample_data(days_back=days_back)
-    st.write("✅ Stations BEFORE Filtering:", river_data['location_name'].unique())
 
     # Filter data for selected stations if needed
     if selected_stations and len(selected_stations) < len(all_stations):
         river_data = river_data[river_data['location_name'].isin(selected_stations)]
-    st.write("✅ Stations AFTER Filtering:", river_data['location_name'].unique())
 
     # Display title with stats
     st.title("Comprehensive Flood Monitoring Dashboard")
