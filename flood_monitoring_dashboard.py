@@ -1257,19 +1257,19 @@ class FloodMonitoringDashboard:
         - **Local Council:** Contact your local authority
         """)
    
-    def customize_sidebar():
-        """Hide unnecessary sidebar information and improve appearance"""
-        st.sidebar.markdown("""
-        <style>
-        [data-testid="stSidebar"] {
-            min-width: 250px;
-            max-width: 250px;
-        }
-        div.stSuccess, div.stWarning, div.stError {
-            display: none;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+def customize_sidebar():
+    """Hide unnecessary sidebar information and improve appearance"""
+    st.sidebar.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        min-width: 250px;
+        max-width: 250px;
+    }
+    div.stSuccess, div.stWarning, div.stError {
+        display: none;
+    }
+    </style>
+    """, unsafe_allow_html=True)
    
 def main():
     # Page configuration
