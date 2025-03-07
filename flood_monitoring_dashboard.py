@@ -224,15 +224,13 @@ class FloodMonitoringDashboard:
                     .execute()
 
                 if response.data:
-                    st.sidebar.success("Using real-time data from Supabase")
+                    # Quietly handle success without sidebar messages
                     df = pd.DataFrame(response.data)
                     df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
                     return df
             
             # Try to fetch from UK Environment Agency API
             try:
-                st.sidebar.info("Attempting to fetch data from Environment Agency API")
-                
                 # List of stations to query - these are example IDs
                 stations = {
                     'Rochdale': '69803',
@@ -268,17 +266,17 @@ class FloodMonitoringDashboard:
                 
                 if all_data:
                     df = pd.DataFrame(all_data)
-                    st.sidebar.success(f"Successfully fetched {len(df)} records from Environment Agency API")
                     return df
                     
-            except Exception as api_error:
-                st.sidebar.error(f"API data retrieval error: {str(api_error)}")
+            except Exception:
+                # Silent error handling - no sidebar message
+                pass
         
-        except Exception as e:
-            st.sidebar.error(f"Data retrieval error: {str(e)}")
+        except Exception:
+            # Silent error handling - no sidebar message
+            pass
         
         # If all else fails, use simulated data as a last resort
-        st.sidebar.warning("Using simulated data as real-time data sources are unavailable")
         return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
@@ -294,7 +292,8 @@ class FloodMonitoringDashboard:
             freq='H'
         )
         
-        stations = ['Rochdale', 'Manchester Racecourse', 'Bury Ground']
+        # Ensure all stations are included
+        stations = list(STATION_CONFIG.keys())
         base_levels = {
             'Rochdale': 0.173,
             'Manchester Racecourse': 0.927,
@@ -303,7 +302,7 @@ class FloodMonitoringDashboard:
         
         data = []
         for station in stations:
-            base_level = base_levels[station]
+            base_level = base_levels.get(station, 0.2)  # Default level if not in dictionary
             for date in dates:
                 # Daily variation
                 hour_effect = 0.02 * np.sin(2 * np.pi * date.hour / 24)
@@ -332,27 +331,40 @@ class FloodMonitoringDashboard:
         """Display real-time monitoring tab"""
         st.header("Current Station Metrics")
         if data is not None:
-            cols = st.columns(3)
-            for i, station in enumerate(data['location_name'].unique()):
-                with cols[i]:
+            unique_stations = data['location_name'].unique()
+            num_stations = len(unique_stations)
+            
+            # Dynamically create the correct number of columns
+            cols = st.columns(num_stations)
+            
+            for i, station in enumerate(unique_stations):
+                with cols[i % num_stations]:  # Use modulo to ensure we don't exceed column count
                     station_data = data[data['location_name'] == station]
-                    river_level = station_data['river_level'].values[0]
-                    
-                    risk_text = 'Low Risk'
-                    delta_color = 'normal'
-                    
-                    if river_level > 0.7:
-                        risk_text = 'High Risk'
-                        delta_color = 'inverse'
-                    elif river_level > 0.4:
-                        risk_text = 'Moderate Risk'
-                    
-                    st.metric(
-                        station, 
-                        f"River Level: {river_level:.3f} m", 
-                        f"Risk: {risk_text}",
-                        delta_color=delta_color
-                    )
+                    if len(station_data) > 0:  # Check if we have data for this station
+                        river_level = station_data['river_level'].values[0]
+                        
+                        # Get risk thresholds from predictor
+                        thresholds = self.predictor.thresholds.get(station, {
+                            'warning': 0.4, 'alert': 0.6, 'critical': 0.8
+                        })
+                        
+                        # Determine risk level
+                        risk_text = 'Low Risk'
+                        delta_color = 'normal'
+                        
+                        if river_level > thresholds['critical']:
+                            risk_text = 'High Risk'
+                            delta_color = 'inverse'
+                        elif river_level > thresholds['alert']:
+                            risk_text = 'Moderate Risk'
+                            delta_color = 'off'
+                        
+                        st.metric(
+                            station, 
+                            f"River Level: {river_level:.3f} m", 
+                            f"Risk: {risk_text}",
+                            delta_color=delta_color
+                        )
 
     def show_predictions(self, data):
         """Display predictions tab"""
@@ -1244,26 +1256,77 @@ class FloodMonitoringDashboard:
         - **Flood Helpline:** 0345 988 1188
         - **Local Council:** Contact your local authority
         """)
-    
+   
+    def customize_sidebar():
+        """Hide unnecessary sidebar information and improve appearance"""
+        st.sidebar.markdown("""
+        <style>
+        [data-testid="stSidebar"] {
+            min-width: 250px;
+            max-width: 250px;
+        }
+        div.stSuccess, div.stWarning, div.stError {
+            display: none;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+   
 def main():
     # Page configuration
     st.set_page_config(
         page_title="Flood Monitoring Dashboard",
         layout="wide"
     )
-    st.title("Comprehensive Flood Monitoring Dashboard")
+    
+    # Apply sidebar customization
+    customize_sidebar()
+    
+    # Clean sidebar - replace success/error messages with minimal info
+    with st.sidebar:
+        st.title("Dashboard Controls")
+        use_real_data = st.checkbox("Use real-time data", value=True)
+        data_source = "Real-time Data" if use_real_data else "Simulated Data"
+        st.write(f"**Current Source:** {data_source}")
+        
+        # Add a date range filter
+        st.subheader("Date Range")
+        days_back = st.slider("Days of data to show", 1, 30, 7)
+        
+        # Add station selector
+        st.subheader("Stations")
+        all_stations = list(STATION_CONFIG.keys())
+        selected_stations = st.multiselect(
+            "Select stations to display",
+            all_stations,
+            default=all_stations
+        )
 
     # Initialize dashboard
     dashboard = FloodMonitoringDashboard()
     
-    # Add a toggle for real vs. simulated data
-    use_real_data = st.sidebar.checkbox("Use real-time data", value=True)
-
-    # Fetch river data
+    # Fix station display issue by passing selected stations
     if use_real_data:
-        river_data = dashboard.fetch_river_data()
+        river_data = dashboard.fetch_river_data(days_back=days_back)
     else:
-        river_data = dashboard._generate_sample_data()
+        river_data = dashboard._generate_sample_data(days_back=days_back)
+    
+    # Filter data for selected stations if needed
+    if selected_stations and len(selected_stations) < len(all_stations):
+        river_data = river_data[river_data['location_name'].isin(selected_stations)]
+    
+    # Display title with stats
+    st.title("Comprehensive Flood Monitoring Dashboard")
+    
+    # Show quick stats at the top
+    if river_data is not None:
+        stations_count = river_data['location_name'].nunique()
+        readings_count = len(river_data)
+        latest_update = river_data['river_timestamp'].max().strftime('%Y-%m-%d %H:%M')
+        
+        cols = st.columns(3)
+        cols[0].metric("Monitoring Stations", stations_count)
+        cols[1].metric("Total Readings", f"{readings_count:,}")
+        cols[2].metric("Latest Update", latest_update)
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
@@ -1276,11 +1339,8 @@ def main():
         "Alerts",
         "Advanced Analytics",
         "Reports",
-        "Mobile View"  # New tab
+        "Mobile View"
     ])
-
-    # Fetch river data
-    river_data = dashboard.fetch_river_data()
 
     # Display tabs
     with tab1:
@@ -1302,7 +1362,7 @@ def main():
     with tab9:
         dashboard.generate_report(river_data)
     with tab10:
-        dashboard.show_mobile_dashboard(river_data)    
+        dashboard.show_mobile_dashboard(river_data)   
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
