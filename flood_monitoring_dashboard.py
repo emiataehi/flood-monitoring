@@ -195,19 +195,15 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=90):
-        """Fetch river monitoring data with improved error handling"""
+        """Fetch river monitoring data with fallback to simulated data"""
         try:
             end_date = datetime.now(pytz.UTC)
             start_date = end_date - timedelta(days=days_back)
             
-            # Verify Supabase connection
             if self.supabase is None:
-                st.error("Database connection not available. Check your Supabase credentials.")
+                st.warning("Database connection not available. Using simulated data.")
                 return self._generate_sample_data(days_back)
                 
-            # Debug connection info
-            st.sidebar.info("Attempting to connect to database...")
-            
             response = self.supabase.table('river_data')\
                 .select('*')\
                 .gte('river_timestamp', start_date.isoformat())\
@@ -216,16 +212,15 @@ class FloodMonitoringDashboard:
                 .execute()
 
             if not response.data:
-                st.warning(f"No river data found for the last {days_back} days. Using simulated data.")
+                st.warning(f"No river data found. Using simulated data for the last {days_back} days")
                 return self._generate_sample_data(days_back)
 
-            st.sidebar.success("Successfully retrieved data from database!")
             df = pd.DataFrame(response.data)
             df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
             return df
 
         except Exception as e:
-            st.error(f"Data retrieval error: {str(e)}. Using simulated data.")
+            st.warning(f"Data retrieval error: {str(e)}. Using simulated data.")
             return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
@@ -1191,7 +1186,28 @@ class FloodMonitoringDashboard:
         - **Flood Helpline:** 0345 988 1188
         - **Local Council:** Contact your local authority
         """)
-    
+     def __init__(self):
+        """Initialize dashboard components with improved error handling"""
+        try:
+            # Load environment variables
+            load_dotenv()
+            
+            # Initialize Supabase client with better error handling
+            try:
+                supabase_url = st.secrets["SUPABASE_URL"]
+                supabase_key = st.secrets["SUPABASE_KEY"]
+                self.supabase = create_client(supabase_url, supabase_key)
+                st.sidebar.success("Supabase client initialized")
+            except Exception as db_error:
+                st.sidebar.error(f"Database connection error: {str(db_error)}")
+                self.supabase = None
+            
+            # Initialize other components
+            # (Your existing initialization code)
+        
+        except Exception as e:
+            st.error(f"Failed to initialize dashboard: {e}")
+            self.supabase = None   
     
 def main():
     # Page configuration
