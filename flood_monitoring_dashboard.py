@@ -227,6 +227,7 @@ class FloodMonitoringDashboard:
                     # Quietly handle success without sidebar messages
                     df = pd.DataFrame(response.data)
                     df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
+                st.write("✅ Raw Data from API/Database:", df.head())  # Shows the first few rows
                     return df
             
             # Try to fetch from UK Environment Agency API
@@ -1319,7 +1320,8 @@ def main():
     # Filter data for selected stations if needed
     if selected_stations and len(selected_stations) < len(all_stations):
         river_data = river_data[river_data['location_name'].isin(selected_stations)]
-    
+    st.write("✅ Stations AFTER Filtering:", river_data['location_name'].unique())
+
     # Display title with stats
     st.title("Comprehensive Flood Monitoring Dashboard")
     
