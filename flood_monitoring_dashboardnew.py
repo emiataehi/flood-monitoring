@@ -194,7 +194,7 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
 
-     def fetch_river_data(self, days_back=90):
+    def fetch_river_data(self, days_back=90):
         """Fetch river monitoring data with improved error handling"""
         try:
             end_date = datetime.now(pytz.UTC)
@@ -228,6 +228,7 @@ class FloodMonitoringDashboard:
             st.error(f"Data retrieval error: {str(e)}. Using simulated data.")
             return self._generate_sample_data(days_back)
 
+    
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
         # Use current time as the end date
