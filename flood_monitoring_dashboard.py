@@ -50,21 +50,22 @@ STATION_CONFIG = {
 
 class FloodPredictionSystem:
     def __init__(self):
+        # MODIFIED: Increased thresholds to reduce critical alerts
         self.thresholds = {
             'Rochdale': {
                 'warning': 0.195,
                 'alert': 0.197,
-                'critical': 0.200
+                'critical': 0.215  # Increased from 0.200
             },
             'Manchester Racecourse': {
                 'warning': 0.970,
                 'alert': 0.982,
-                'critical': 0.985
+                'critical': 0.995  # Increased from 0.985
             },
             'Bury Ground': {
                 'warning': 0.325,
                 'alert': 0.330,
-                'critical': 0.350
+                'critical': 0.365  # Increased from 0.350
             }
         }
     
@@ -87,14 +88,86 @@ class FloodPredictionSystem:
         """Get risk level based on analyzed thresholds with more granularity"""
         thresholds = self.thresholds[station]
         
+        # MODIFIED: Added buffer zone between alert and critical levels
         if current_level >= thresholds['critical']:
             return "HIGH", "red"
+        # Added buffer category to reduce immediate jumps to HIGH
+        elif current_level >= (thresholds['critical'] - 0.01):
+            return "ELEVATED", "orange"
         elif current_level >= thresholds['alert']:
             return "MODERATE", "orange"
         elif current_level >= thresholds['warning']:
             return "LOW", "yellow"
         else:
             return "NORMAL", "green"
+
+class EnhancedAlertSystem:
+    def __init__(self):
+        # You can modify this section if needed to change alert behavior
+        pass
+        
+    def generate_alert(self, station, current_level):
+        # This is a placeholder - your actual implementation would need to be adjusted
+        # based on the modified thresholds in FloodPredictionSystem
+        predictor = FloodPredictionSystem()
+        risk_level, _ = predictor.get_risk_level(current_level, station)
+        
+        # Map risk levels to alert levels
+        alert_level_map = {
+            "HIGH": "CRITICAL",
+            "ELEVATED": "HIGH",  # New buffer category
+            "MODERATE": "WARNING",
+            "LOW": "MONITOR",
+            "NORMAL": "NORMAL"
+        }
+        
+        alert_level = alert_level_map.get(risk_level, "MONITOR")
+        
+        # Create description based on alert level
+        descriptions = {
+            "CRITICAL": "Immediate action required. Critical flood risk detected.",
+            "HIGH": "High flood risk. Prepare for possible evacuation.",
+            "WARNING": "Moderate flood risk. Monitor conditions closely.",
+            "MONITOR": "Low flood risk. Stay informed of changing conditions.",
+            "NORMAL": "Normal conditions. No flood risk at this time."
+        }
+        
+        return {
+            "station": station,
+            "alert_level": alert_level,
+            "current_level": current_level,
+            "description": descriptions.get(alert_level, "Unknown risk level"),
+            "timestamp": datetime.now(pytz.UTC)
+        }
+    
+    def send_notifications(self, alert):
+        # This is a placeholder for your notification logic
+        # Modify if needed based on new alert thresholds
+        channels = []
+        
+        if alert['alert_level'] == 'CRITICAL':
+            channels = ['email', 'sms', 'app', 'emergency_services']
+        elif alert['alert_level'] == 'HIGH':
+            channels = ['email', 'sms', 'app']
+        elif alert['alert_level'] == 'WARNING':
+            channels = ['email', 'app']
+        elif alert['alert_level'] == 'MONITOR':
+            channels = ['app']
+        
+        return channels
+    
+    def get_recent_alerts(self, days=7):
+        # This is a placeholder - in a real system, you'd fetch from a database
+        return pd.DataFrame({
+            'station': [],
+            'alert_level': [],
+            'current_level': [],
+            'description': [],
+            'timestamp': []
+        })
+
+# The rest of the code remains unchanged
+# ...
 
 class AdvancedAnalytics:
     def __init__(self):
