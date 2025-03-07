@@ -218,7 +218,15 @@ class FloodMonitoringDashboard:
             if not response.data:
                 st.warning(f"No river data found for the last {days_back} days. Using simulated data.")
                 return self._generate_sample_data(days_back)
+            
+            if not response.data:
+                st.error("❌ No data retrieved from Supabase.")
+            df = pd.DataFrame(response.data)
 
+            # Debugging: Show fetched data
+            st.write("✅ Retrieved Data Sample:", df.head())
+
+            
             st.sidebar.success("Successfully retrieved data from database!")
             df = pd.DataFrame(response.data)
             df['river_timestamp'] = pd.to_datetime(df['river_timestamp'], utc=True)
@@ -319,6 +327,15 @@ class FloodMonitoringDashboard:
                     
                     # Analyze trend on recent data
                     recent_data = station_data.head(24)  # Last 24 hours
+                    # Debugging: Check if data is empty or missing columns
+                    if recent_data.empty:
+                        st.error(f"❌ No recent data found for {station}. Check database query.")
+                        return
+                    elif 'river_level' not in recent_data.columns:
+                        st.error(f"❌ 'river_level' column is missing for {station}.")
+                        return
+
+                    st.write(f"📊 Debugging: Recent Data for {station}", recent_data.head())
                     trend_direction, trend_rate, confidence = self.predictor.analyze_trend(recent_data)
                     risk_level, risk_color = self.predictor.get_risk_level(current_level, station)
                     
