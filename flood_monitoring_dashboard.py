@@ -52,19 +52,19 @@ class FloodPredictionSystem:
     def __init__(self):
         self.thresholds = {
             'Rochdale': {
-                'warning': 0.168,
-                'alert': 0.169,
-                'critical': 0.170
+                'warning': 0.195,
+                'alert': 0.197,
+                'critical': 0.200
             },
             'Manchester Racecourse': {
-                'warning': 0.938,
-                'alert': 0.944,
-                'critical': 0.950
+                'warning': 0.984,
+                'alert': 0.989,
+                'critical': 0.995
             },
             'Bury Ground': {
-                'warning': 0.314,
-                'alert': 0.317,
-                'critical': 0.320
+                'warning': 0.325,
+                'alert': 0.330,
+                'critical': 0.350
             }
         }
     
