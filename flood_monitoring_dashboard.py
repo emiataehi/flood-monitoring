@@ -1263,17 +1263,21 @@ class FloodMonitoringDashboard:
         - **Local Council:** Contact your local authority
         """)
    
-def customize_sidebar():
-    """Hide unnecessary sidebar information and improve appearance"""
-    st.sidebar.markdown("""
+def completely_hide_sidebar():
+    """Hide the sidebar completely using CSS"""
+    st.markdown("""
     <style>
-    [data-testid="stSidebar"] {
-        min-width: 250px;
-        max-width: 250px;
-    }
-    div.stSuccess, div.stWarning, div.stError {
-        display: none;
-    }
+        /* Hide the sidebar completely */
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
+        
+        /* Ensure main content takes full width */
+        .main .block-container {
+            max-width: 100%;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
     </style>
     """, unsafe_allow_html=True)
    
@@ -1284,33 +1288,30 @@ def main():
         layout="wide"
     )
     
-    # Apply sidebar customization
-    customize_sidebar()
+    # Apply the function to completely hide the sidebar
+    completely_hide_sidebar()
     
-    # Clean sidebar - replace success/error messages with minimal info
-    with st.sidebar:
-        st.title("Dashboard Controls")
-        use_real_data = st.checkbox("Use real-time data", value=True)
-        data_source = "Real-time Data" if use_real_data else "Simulated Data"
-        st.write(f"**Current Source:** {data_source}")
-        
-        # Add a date range filter
-        st.subheader("Date Range")
-        days_back = st.slider("Days of data to show", 1, 30, 7)
-        
-        # Add station selector
-        st.subheader("Stations")
-        all_stations = list(STATION_CONFIG.keys())
-        selected_stations = st.multiselect(
-            "Select stations to display",
-            all_stations,
-            default=all_stations
-        )
-
+    # Display title
+    st.title("Comprehensive Flood Monitoring Dashboard")
+    
+    # Add critical controls to the main area in a collapsible section if needed
+    with st.expander("Dashboard Settings", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            use_real_data = st.checkbox("Use real-time data", value=True)
+            days_back = st.slider("Days of data to show", 1, 30, 7)
+        with col2:
+            all_stations = list(STATION_CONFIG.keys())
+            selected_stations = st.multiselect(
+                "Select stations to display",
+                all_stations,
+                default=all_stations
+            )
+    
     # Initialize dashboard
     dashboard = FloodMonitoringDashboard()
     
-    # Fix station display issue by passing selected stations
+    # Get data based on selection
     if use_real_data:
         river_data = dashboard.fetch_river_data(days_back=days_back)
     else:
@@ -1320,9 +1321,6 @@ def main():
     if selected_stations and len(selected_stations) < len(all_stations):
         river_data = river_data[river_data['location_name'].isin(selected_stations)]
 
-    # Display title with stats
-    st.title("Comprehensive Flood Monitoring Dashboard")
-    
     # Show quick stats at the top
     if river_data is not None:
         stations_count = river_data['location_name'].nunique()
@@ -1368,7 +1366,7 @@ def main():
     with tab9:
         dashboard.generate_report(river_data)
     with tab10:
-        dashboard.show_mobile_dashboard(river_data)   
+        dashboard.show_mobile_dashboard(river_data)
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
