@@ -768,17 +768,19 @@ class FloodMonitoringDashboard:
         """Enhanced geospatial view with better visuals"""
         st.header("Station Geographic Distribution")
         
-        # Add context about the region
         col1, col2 = st.columns([2, 1])
         
         with col1:
             # Create station data for map
             stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
             stations_df.reset_index(inplace=True)
-            stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level', 'Measure ID']
+            stations_df.rename(columns={'index': 'Station'}, inplace=True)
 
             if data is not None:
                 # Add current levels and risk status to stations
+                stations_df['Current Level'] = ''
+                stations_df['Status'] = ''
+                
                 for station in data['location_name'].unique():
                     station_data = data[data['location_name'] == station]
                     current_level = station_data['river_level'].iloc[0]
@@ -789,38 +791,42 @@ class FloodMonitoringDashboard:
                     stations_df.loc[mask, 'Current Level'] = f"{current_level:.3f}m"
                     stations_df.loc[mask, 'Status'] = risk_level
 
-            # Create enhanced map with better styling
-            # Determine marker colors based on risk
-            def get_color(risk_level):
-                if risk_level == 'HIGH':
+            # Determine marker colors based on status
+            def get_color(row):
+                if 'Status' in row and row['Status']:
+                    status = row['Status']
+                    if status == 'HIGH':
+                        return 'red'
+                    elif status == 'MODERATE':
+                        return 'orange'
+                    elif status == 'LOW':
+                        return 'yellow'
+                    else:
+                        return 'green'
+                # Fallback to risk_level from config
+                risk = row.get('risk_level', 'Low')
+                if risk == 'High':
                     return 'red'
-                elif risk_level == 'MODERATE':
-                    return 'orange'
-                elif risk_level == 'LOW':
+                elif risk == 'Moderate':
                     return 'yellow'
                 else:
                     return 'green'
 
-            stations_df['Color'] = stations_df['Risk Level'].apply(lambda x: 
-                'yellow' if x == 'Moderate' else 'red' if x == 'High' else 'green')
-            
-            # Update colors based on actual status if available
-            if 'Status' in stations_df.columns:
-                stations_df['Color'] = stations_df['Status'].apply(get_color)
+            stations_df['Color'] = stations_df.apply(get_color, axis=1)
 
-            # Create map centered on Greater Manchester
+            # Create map
             fig = px.scatter_mapbox(
                 stations_df, 
-                lat='Latitude', 
-                lon='Longitude',
+                lat='latitude', 
+                lon='longitude',
                 hover_name='Station',
                 hover_data={
-                    'Full Name': True,
-                    'River': True,
-                    'Current Level': True if 'Current Level' in stations_df.columns else False,
-                    'Status': True if 'Status' in stations_df.columns else False,
-                    'Latitude': False,
-                    'Longitude': False,
+                    'full_name': True,
+                    'river': True,
+                    'Current Level': True,
+                    'Status': True,
+                    'latitude': False,
+                    'longitude': False,
                     'Color': False
                 },
                 color='Color',
@@ -830,7 +836,7 @@ class FloodMonitoringDashboard:
                     'orange': '#ffa500',
                     'red': '#ff0000'
                 },
-                size=[20, 20, 20],  # Larger markers
+                size=[20, 20, 20],
                 zoom=10.5,
                 height=600
             )
@@ -861,7 +867,15 @@ class FloodMonitoringDashboard:
                             st.metric("Current Level", f"{current_level:.3f}m")
                             st.markdown(f"**Status:** :{color}[{risk_level}]")
             
-            # Add legend
+            # Legend
+            st.markdown("---")
+            st.subheader("Map Legend")
+            st.markdown("🟢 **Normal** - No risk")
+            st.markdown("🟡 **Low Risk** - Monitor")
+            st.markdown("🟠 **Moderate** - Warning")
+            st.markdown("🔴 **High Risk** - Alert")
+            
+            # Legend
             st.markdown("---")
             st.subheader("Map Legend")
             st.markdown("🟢 **Normal** - No risk")
