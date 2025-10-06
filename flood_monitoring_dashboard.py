@@ -1333,88 +1333,74 @@ def main():
     # Page configuration
     st.set_page_config(
         page_title="Flood Monitoring Dashboard",
-        layout="wide"
+        layout="wide",
+        initial_sidebar_state="collapsed"
     )
     
     # Apply the function to completely hide the sidebar
     completely_hide_sidebar()
     
-    # Display title
-    st.title("Comprehensive Flood Monitoring Dashboard")
-    
-    # Add critical controls to the main area in a collapsible section if needed
-    with st.expander("Dashboard Settings", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            use_real_data = st.checkbox("Use real-time data", value=True)
-            days_back = st.slider("Days of data to show", 1, 30, 7)
-        with col2:
-            all_stations = list(STATION_CONFIG.keys())
-            selected_stations = st.multiselect(
-                "Select stations to display",
-                all_stations,
-                default=all_stations
-            )
+    # Display title with subtitle
+    st.title("Real-Time Flood Monitoring System")
+    st.markdown("**Greater Manchester Region** | Live data from UK Environment Agency")
     
     # Initialize dashboard
     dashboard = FloodMonitoringDashboard()
     
-    # Get data based on selection
-    if use_real_data:
-        river_data = dashboard.fetch_river_data(days_back=days_back)
-    else:
-        river_data = dashboard._generate_sample_data(days_back=days_back)
+    # Fetch real-time data (no more toggle - always use real data)
+    river_data = dashboard.fetch_river_data(days_back=7)
 
-    # Filter data for selected stations if needed
-    if selected_stations and len(selected_stations) < len(all_stations):
-        river_data = river_data[river_data['location_name'].isin(selected_stations)]
-
-    # Show quick stats at the top
+    # Executive Summary Section
     if river_data is not None:
+        st.markdown("---")
+        st.subheader("System Status Overview")
+        
+        # Create 4 columns for key metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
         stations_count = river_data['location_name'].nunique()
         readings_count = len(river_data)
-        latest_update = river_data['river_timestamp'].max().strftime('%Y-%m-%d %H:%M')
+        latest_update = river_data['river_timestamp'].max()
         
-        cols = st.columns(3)
-        cols[0].metric("Monitoring Stations", stations_count)
-        cols[1].metric("Total Readings", f"{readings_count:,}")
-        cols[2].metric("Latest Update", latest_update)
+        # Calculate overall risk
+        high_risk_count = 0
+        for station in river_data['location_name'].unique():
+            station_data = river_data[river_data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            risk_level, _ = dashboard.predictor.get_risk_level(current_level, station)
+            if risk_level in ['HIGH', 'MODERATE']:
+                high_risk_count += 1
+        
+        with col1:
+            st.metric("Active Stations", stations_count, "Operational")
+        with col2:
+            st.metric("Total Readings", f"{readings_count:,}", "Last 7 days")
+        with col3:
+            st.metric("Last Update", latest_update.strftime('%H:%M'), latest_update.strftime('%d %b'))
+        with col4:
+            status = "All Clear" if high_risk_count == 0 else f"{high_risk_count} Alert(s)"
+            status_color = "🟢" if high_risk_count == 0 else "🟡"
+            st.metric("System Status", status, status_color)
 
-    # Create tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "Real-Time Monitoring",
-        "Predictions",
-        "Historical Trends",
-        "Station Details",
-        "Geospatial View",
-        "Watershed Analysis",
-        "Alerts",
-        "Advanced Analytics",
-        "Reports",
-        "Mobile View"
+    # Simplified tabs - only 5 essential ones
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 Real-Time Monitoring",
+        "📈 Predictions & Trends",
+        "🗺️ Geographic View",
+        "🚨 Alert Management",
+        "📄 Reports & Export"
     ])
 
-    # Display tabs
     with tab1:
         dashboard.show_real_time_monitoring(river_data)
     with tab2:
-        dashboard.show_predictions(river_data)
+        dashboard.show_predictions_enhanced(river_data)
     with tab3:
-        dashboard.show_historical_trends(river_data)
-    with tab4:
-        dashboard.show_station_details(river_data)
-    with tab5:
         dashboard.show_geospatial_view(river_data)
-    with tab6:
-        dashboard.show_watershed_analysis(river_data)
-    with tab7:
+    with tab4:
         dashboard.show_alerts(river_data)
-    with tab8:
-        dashboard.show_advanced_analytics(river_data)
-    with tab9:
+    with tab5:
         dashboard.generate_report(river_data)
-    with tab10:
-        dashboard.show_mobile_dashboard(river_data)
 
     # Optional: Update query parameters
     st.query_params.update(refresh=True)
