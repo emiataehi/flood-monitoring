@@ -1394,7 +1394,7 @@ def main():
     with tab1:
         dashboard.show_real_time_monitoring(river_data)
     with tab2:
-        dashboard.show_predictions_enhanced(river_data)
+        dashboard.show_predictions(river_data)
     with tab3:
         dashboard.show_geospatial_view(river_data)
     with tab4:
