@@ -534,117 +534,117 @@ class FloodMonitoringDashboard:
                 st.success("No significant anomalies detected across stations")           
     
     def show_predictions_enhanced(self, data):
-    """Enhanced predictions tab with gauge visualizations"""
-    st.header("River Level Predictions & Analysis")
-    
-    if data is not None:
-        data = data.sort_values('river_timestamp', ascending=False)
+        """Enhanced predictions tab with gauge visualizations"""
+        st.header("River Level Predictions & Analysis")
         
-        # Gauges for each station
-        st.subheader("Current Levels - Live Gauges")
-        cols = st.columns(3)
-        
-        for i, station in enumerate(data['location_name'].unique()):
-            with cols[i]:
-                station_data = data[data['location_name'] == station].copy()
-                current_level = station_data['river_level'].iloc[0]
+        if data is not None:
+            data = data.sort_values('river_timestamp', ascending=False)
+            
+            # Gauges for each station
+            st.subheader("Current Levels - Live Gauges")
+            cols = st.columns(3)
+            
+            for i, station in enumerate(data['location_name'].unique()):
+                with cols[i]:
+                    station_data = data[data['location_name'] == station].copy()
+                    current_level = station_data['river_level'].iloc[0]
+                    thresholds = self.predictor.thresholds[station]
+                    
+                    # Create gauge chart using plotly
+                    fig = go.Figure(go.Indicator(
+                        mode = "gauge+number+delta",
+                        value = current_level,
+                        domain = {'x': [0, 1], 'y': [0, 1]},
+                        title = {'text': station, 'font': {'size': 16}},
+                        delta = {'reference': thresholds['warning']},
+                        gauge = {
+                            'axis': {'range': [None, thresholds['critical'] * 1.2]},
+                            'bar': {'color': "darkblue"},
+                            'steps': [
+                                {'range': [0, thresholds['warning']], 'color': "lightgreen"},
+                                {'range': [thresholds['warning'], thresholds['alert']], 'color': "yellow"},
+                                {'range': [thresholds['alert'], thresholds['critical']], 'color': "orange"},
+                                {'range': [thresholds['critical'], thresholds['critical'] * 1.2], 'color': "red"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': thresholds['critical']
+                            }
+                        }
+                    ))
+                    
+                    fig.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Show thresholds
+                    st.caption(f"⚠️ Warning: {thresholds['warning']:.2f}m | 🚨 Critical: {thresholds['critical']:.2f}m")
+            
+            # Combined trend chart with threshold lines
+            st.subheader("24-Hour Trend Analysis")
+            fig = go.Figure()
+            
+            for station in data['location_name'].unique():
+                station_data = data[data['location_name'] == station].head(24)
                 thresholds = self.predictor.thresholds[station]
                 
-                # Create gauge chart using plotly
-                fig = go.Figure(go.Indicator(
-                    mode = "gauge+number+delta",
-                    value = current_level,
-                    domain = {'x': [0, 1], 'y': [0, 1]},
-                    title = {'text': station, 'font': {'size': 16}},
-                    delta = {'reference': thresholds['warning']},
-                    gauge = {
-                        'axis': {'range': [None, thresholds['critical'] * 1.2]},
-                        'bar': {'color': "darkblue"},
-                        'steps': [
-                            {'range': [0, thresholds['warning']], 'color': "lightgreen"},
-                            {'range': [thresholds['warning'], thresholds['alert']], 'color': "yellow"},
-                            {'range': [thresholds['alert'], thresholds['critical']], 'color': "orange"},
-                            {'range': [thresholds['critical'], thresholds['critical'] * 1.2], 'color': "red"}
-                        ],
-                        'threshold': {
-                            'line': {'color': "red", 'width': 4},
-                            'thickness': 0.75,
-                            'value': thresholds['critical']
-                        }
-                    }
-                ))
-                
-                fig.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Show thresholds
-                st.caption(f"⚠️ Warning: {thresholds['warning']:.2f}m | 🚨 Critical: {thresholds['critical']:.2f}m")
-        
-        # Combined trend chart with threshold lines
-        st.subheader("24-Hour Trend Analysis")
-        fig = go.Figure()
-        
-        for station in data['location_name'].unique():
-            station_data = data[data['location_name'] == station].head(24)
-            thresholds = self.predictor.thresholds[station]
-            
-            # Add main line
-            fig.add_trace(go.Scatter(
-                x=station_data['river_timestamp'],
-                y=station_data['river_level'],
-                name=station,
-                mode='lines+markers',
-                line=dict(width=3)
-            ))
-            
-            # Add threshold lines (only for first station to avoid clutter)
-            if station == data['location_name'].unique()[0]:
-                # Warning line
+                # Add main line
                 fig.add_trace(go.Scatter(
                     x=station_data['river_timestamp'],
-                    y=[thresholds['warning']] * len(station_data),
-                    name='Warning Level',
-                    line=dict(color='yellow', width=2, dash='dash'),
-                    showlegend=True
+                    y=station_data['river_level'],
+                    name=station,
+                    mode='lines+markers',
+                    line=dict(width=3)
                 ))
                 
-                # Critical line
-                fig.add_trace(go.Scatter(
-                    x=station_data['river_timestamp'],
-                    y=[thresholds['critical']] * len(station_data),
-                    name='Critical Level',
-                    line=dict(color='red', width=2, dash='dash'),
-                    showlegend=True
-                ))
-        
-        fig.update_layout(
-            title="River Levels - Last 24 Hours with Alert Thresholds",
-            xaxis_title="Time",
-            yaxis_title="Water Level (m)",
-            height=500,
-            hovermode='x unified'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Quick stats table
-        st.subheader("Station Statistics")
-        stats_data = []
-        for station in data['location_name'].unique():
-            station_data = data[data['location_name'] == station]
-            recent_24h = station_data.head(24)
+                # Add threshold lines (only for first station to avoid clutter)
+                if station == data['location_name'].unique()[0]:
+                    # Warning line
+                    fig.add_trace(go.Scatter(
+                        x=station_data['river_timestamp'],
+                        y=[thresholds['warning']] * len(station_data),
+                        name='Warning Level',
+                        line=dict(color='yellow', width=2, dash='dash'),
+                        showlegend=True
+                    ))
+                    
+                    # Critical line
+                    fig.add_trace(go.Scatter(
+                        x=station_data['river_timestamp'],
+                        y=[thresholds['critical']] * len(station_data),
+                        name='Critical Level',
+                        line=dict(color='red', width=2, dash='dash'),
+                        showlegend=True
+                    ))
             
-            stats_data.append({
-                'Station': station,
-                'Current': f"{station_data['river_level'].iloc[0]:.3f}m",
-                '24h Average': f"{recent_24h['river_level'].mean():.3f}m",
-                '24h Min': f"{recent_24h['river_level'].min():.3f}m",
-                '24h Max': f"{recent_24h['river_level'].max():.3f}m",
-                'Trend': '↑ Rising' if recent_24h['river_level'].diff().mean() > 0 else '↓ Falling'
-            })
-        
-        stats_df = pd.DataFrame(stats_data)
-        st.dataframe(stats_df, use_container_width=True, hide_index=True)
+            fig.update_layout(
+                title="River Levels - Last 24 Hours with Alert Thresholds",
+                xaxis_title="Time",
+                yaxis_title="Water Level (m)",
+                height=500,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Quick stats table
+            st.subheader("Station Statistics")
+            stats_data = []
+            for station in data['location_name'].unique():
+                station_data = data[data['location_name'] == station]
+                recent_24h = station_data.head(24)
+                
+                stats_data.append({
+                    'Station': station,
+                    'Current': f"{station_data['river_level'].iloc[0]:.3f}m",
+                    '24h Average': f"{recent_24h['river_level'].mean():.3f}m",
+                    '24h Min': f"{recent_24h['river_level'].min():.3f}m",
+                    '24h Max': f"{recent_24h['river_level'].max():.3f}m",
+                    'Trend': '↑ Rising' if recent_24h['river_level'].diff().mean() > 0 else '↓ Falling'
+                })
+            
+            stats_df = pd.DataFrame(stats_data)
+            st.dataframe(stats_df, use_container_width=True, hide_index=True)
     
     def show_historical_trends(self, data):
         """Display historical trends tab with proper date range"""
