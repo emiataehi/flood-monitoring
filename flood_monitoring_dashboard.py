@@ -284,49 +284,49 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
 
-def fetch_river_data(self, days_back=7):
-    """Fetch river monitoring data from real API"""
-    try:
-        # Try UK Environment Agency API with correct measure IDs
-        stations = {
-            'Rochdale': '690203-level-stage-i-15_min-m',
-            'Manchester Racecourse': '690510-level-stage-i-15_min-m',
-            'Bury Ground': '690160-level-stage-i-15_min-m'
-        }
-        
-        all_data = []
-        
-        for station_name, measure_id in stations.items():
-            url = f"https://environment.data.gov.uk/flood-monitoring/id/measures/{measure_id}/readings?_sorted&_limit=500"
+	def fetch_river_data(self, days_back=7):
+        """Fetch river monitoring data from real API"""
+        try:
+            # Try UK Environment Agency API with correct measure IDs
+            stations = {
+                'Rochdale': '690203-level-stage-i-15_min-m',
+                'Manchester Racecourse': '690510-level-stage-i-15_min-m',
+                'Bury Ground': '690160-level-stage-i-15_min-m'
+            }
             
-            try:
-                response = requests.get(url, timeout=10)
+            all_data = []
+            
+            for station_name, measure_id in stations.items():
+                url = f"https://environment.data.gov.uk/flood-monitoring/id/measures/{measure_id}/readings?_sorted&_limit=500"
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    readings = data.get('items', [])
+                try:
+                    response = requests.get(url, timeout=10)
                     
-                    for reading in readings:
-                        all_data.append({
-                            'river_timestamp': pd.to_datetime(reading.get('dateTime')),
-                            'location_name': station_name,
-                            'river_level': reading.get('value', 0),
-                            'rainfall': 0,
-                            'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
-                        })
-            except Exception as e:
-                continue
+                    if response.status_code == 200:
+                        data = response.json()
+                        readings = data.get('items', [])
+                        
+                        for reading in readings:
+                            all_data.append({
+                                'river_timestamp': pd.to_datetime(reading.get('dateTime')),
+                                'location_name': station_name,
+                                'river_level': reading.get('value', 0),
+                                'rainfall': 0,
+                                'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
+                            })
+                except Exception:
+                    continue
+            
+            if all_data:
+                df = pd.DataFrame(all_data)
+                df = df.sort_values('river_timestamp', ascending=False)
+                return df
+                        
+        except Exception:
+            pass
         
-        if all_data:
-            df = pd.DataFrame(all_data)
-            df = df.sort_values('river_timestamp', ascending=False)
-            return df
-                    
-    except Exception:
-        pass
-    
-    # Fallback to simulated data
-    return self._generate_sample_data(days_back)
+        # Fallback to simulated data
+        return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
@@ -1420,4 +1420,5 @@ def main():
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
+
     main()	
