@@ -284,7 +284,7 @@ class FloodMonitoringDashboard:
             st.error(f"Failed to initialize dashboard: {e}")
             self.supabase = None
 
-	def fetch_river_data(self, days_back=7):
+    def fetch_river_data(self, days_back=7):
         """Fetch river monitoring data from real API"""
         try:
             # Try UK Environment Agency API with correct measure IDs
@@ -1420,5 +1420,4 @@ def main():
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
-
     main()	
