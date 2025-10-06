@@ -1067,225 +1067,141 @@ class FloodMonitoringDashboard:
                     st.write(f"Forecast Confidence: {forecast['confidence']}")
                     
     def generate_report(self, data):
-        """Generate comprehensive flood monitoring report"""
-        st.header("Flood Monitoring Report")
+        """Streamlined reports and export functionality"""
+        st.header("Reports & Data Export")
         
         if data is None:
             st.warning("No data available for report generation")
             return
 
-        # Add timestamp
-        st.markdown(f"*Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-
-        # Current Status Overview
-        st.subheader("Current Status Overview")
-        status_df = []
+        # Report generation timestamp
+        report_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        st.markdown(f"*Report Generated: {report_time}*")
+        
+        st.markdown("---")
+        
+        # Quick Summary Cards
+        st.subheader("Executive Summary")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        # Calculate summary metrics
+        total_stations = data['location_name'].nunique()
+        total_readings = len(data)
+        
+        high_risk_stations = []
+        normal_stations = []
+        
         for station in data['location_name'].unique():
             station_data = data[data['location_name'] == station]
             current_level = station_data['river_level'].iloc[0]
             risk_level, _ = self.predictor.get_risk_level(current_level, station)
             
-            status_df.append({
-                'Station': station,
-                'Current Level': f"{current_level:.3f}m",
-                'Risk Level': risk_level,
-                'Status': 'Above Threshold' if risk_level in ['MODERATE', 'HIGH'] else 'Normal'
-            })
-        
-        st.dataframe(pd.DataFrame(status_df), hide_index=True)
-
-        # Trend Analysis
-        st.subheader("24-Hour Trend Analysis")
-        fig = go.Figure()
-        
-        for station in data['location_name'].unique():
-            station_data = data[data['location_name'] == station].head(24)
-            fig.add_trace(go.Scatter(
-                x=station_data['river_timestamp'],
-                y=station_data['river_level'],
-                name=station,
-                mode='lines+markers'
-            ))
-        
-        fig.update_layout(
-            title="River Levels - Last 24 Hours",
-            xaxis_title="Time",
-            yaxis_title="River Level (m)",
-            height=400
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Risk Assessment Summary
-        st.subheader("Risk Assessment Summary")
-        risk_cols = st.columns(3)
-        with risk_cols[0]:
-            high_risk = sum(1 for s in status_df if s['Risk Level'] == 'HIGH')
-            st.metric("High Risk Stations", high_risk, 
-                     delta="Critical" if high_risk > 0 else "Normal")
-        
-        with risk_cols[1]:
-            moderate_risk = sum(1 for s in status_df if s['Risk Level'] == 'MODERATE')
-            st.metric("Moderate Risk Stations", moderate_risk,
-                     delta="Warning" if moderate_risk > 0 else "Normal")
-        
-        with risk_cols[2]:
-            low_risk = sum(1 for s in status_df if s['Risk Level'] == 'LOW')
-            st.metric("Low Risk Stations", low_risk,
-                     delta="Normal" if low_risk == len(status_df) else "Some Risks Present")
-
-        # Recent Alerts
-        st.subheader("Recent Alert History")
-        recent_alerts = self.alert_system.get_recent_alerts(days=1)
-        if not recent_alerts.empty:
-            recent_alerts['timestamp'] = pd.to_datetime(recent_alerts['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
-            st.dataframe(recent_alerts)
-        else:
-            st.info("No alerts in the past 24 hours")
-
-        # Export Options
-        st.subheader("Export Options")
-        col1, col2 = st.columns(2)
+            if risk_level in ['HIGH', 'MODERATE']:
+                high_risk_stations.append(station)
+            else:
+                normal_stations.append(station)
         
         with col1:
-            if st.button("📊 Export Data as CSV"):
-                csv = data.to_csv(index=False)
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name=f"flood_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime='text/csv'
-                )
-        
+            st.metric("Total Stations Monitored", total_stations)
         with col2:
-            if st.button("📄 Export Summary Report"):
-                # Create summary report
-                report = f"""Flood Monitoring Summary Report
-    Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-    Current Status:
-    {"="*50}"""
-                for station in status_df:
-                    report += f"\n{station['Station']}:"
-                    report += f"\n- Current Level: {station['Current Level']}"
-                    report += f"\n- Risk Level: {station['Risk Level']}"
-                    report += f"\n- Status: {station['Status']}\n"
-                
-                st.download_button(
-                    label="Download Report",
-                    data=report,
-                    file_name=f"flood_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                    mime='text/plain'
-                )
-    def generate_report(self, data):
-        """Generate flood monitoring report"""
-        st.header("Flood Monitoring Report")
+            st.metric("Stations at Risk", len(high_risk_stations), 
+                    delta="Critical" if len(high_risk_stations) > 0 else "Normal",
+                    delta_color="inverse" if len(high_risk_stations) > 0 else "off")
+        with col3:
+            st.metric("Data Points (7 days)", f"{total_readings:,}")
         
-        if data is None:
-            st.warning("No data available for report generation")
-            return
-
-        # Add timestamp
-        st.markdown(f"*Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-
-        # Current Status Overview
-        st.subheader("Current Status Overview")
-        status_df = []
+        # Status breakdown
+        st.markdown("---")
+        st.subheader("Current Station Status")
+        
+        status_table = []
         for station in data['location_name'].unique():
             station_data = data[data['location_name'] == station]
             current_level = station_data['river_level'].iloc[0]
             risk_level, _ = self.predictor.get_risk_level(current_level, station)
             
-            status_df.append({
+            recent_24h = station_data.head(24)
+            avg_24h = recent_24h['river_level'].mean()
+            max_24h = recent_24h['river_level'].max()
+            trend = recent_24h['river_level'].diff().mean()
+            
+            status_table.append({
                 'Station': station,
-                'Current Level': f"{current_level:.3f}m",
-                'Risk Level': risk_level,
-                'Status': 'Above Threshold' if risk_level in ['MODERATE', 'HIGH'] else 'Normal'
+                'Current Level (m)': f"{current_level:.3f}",
+                'Risk Status': risk_level,
+                '24h Average (m)': f"{avg_24h:.3f}",
+                '24h Peak (m)': f"{max_24h:.3f}",
+                'Trend': '↑ Rising' if trend > 0 else '↓ Falling'
             })
         
-        st.dataframe(pd.DataFrame(status_df), hide_index=True)
-
-        # Trend Analysis
-        st.subheader("24-Hour Trend Analysis")
-        fig = go.Figure()
+        st.dataframe(pd.DataFrame(status_table), use_container_width=True, hide_index=True)
         
-        for station in data['location_name'].unique():
-            station_data = data[data['location_name'] == station].head(24)
-            fig.add_trace(go.Scatter(
-                x=station_data['river_timestamp'],
-                y=station_data['river_level'],
-                name=station,
-                mode='lines+markers'
-            ))
-        
-        fig.update_layout(
-            title="River Levels - Last 24 Hours",
-            xaxis_title="Time",
-            yaxis_title="River Level (m)",
-            height=400
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Risk Assessment Summary
-        st.subheader("Risk Assessment Summary")
-        risk_cols = st.columns(3)
-        with risk_cols[0]:
-            high_risk = sum(1 for s in status_df if s['Risk Level'] == 'HIGH')
-            st.metric("High Risk Stations", high_risk, 
-                     delta="Normal" if high_risk == 0 else "Critical")
-        
-        with risk_cols[1]:
-            moderate_risk = sum(1 for s in status_df if s['Risk Level'] == 'MODERATE')
-            st.metric("Moderate Risk Stations", moderate_risk,
-                     delta="Normal" if moderate_risk == 0 else "Warning")
-        
-        with risk_cols[2]:
-            low_risk = sum(1 for s in status_df if s['Risk Level'] == 'LOW')
-            st.metric("Low Risk Stations", low_risk,
-                     delta="Normal" if low_risk == len(status_df) else "Some Risks Present")
-
-        # Recent Alerts
-        st.subheader("Recent Alert History")
-        recent_alerts = self.alert_system.get_recent_alerts(days=1)
-        if not recent_alerts.empty:
-            st.dataframe(recent_alerts)
-        else:
-            st.info("No alerts in the past 24 hours")
-
-        # Export Options
+        # Data export options
+        st.markdown("---")
         st.subheader("Export Options")
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("📊 Export Raw Data"):
-                csv = data.to_csv(index=False)
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name=f"flood_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime='text/csv'
-                )
+            st.markdown("**📊 Raw Data Export**")
+            
+            # CSV export
+            csv = data.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV Data",
+                data=csv,
+                file_name=f"flood_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime='text/csv',
+                use_container_width=True
+            )
+            
+            st.caption(f"Includes {len(data)} readings from {data['location_name'].nunique()} stations")
         
         with col2:
-            if st.button("📑 Export Summary Report"):
-                summary = f"""Flood Monitoring Summary Report
-    Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            st.markdown("**📄 Summary Report**")
+            
+            # Text summary
+            summary_report = f"""Flood Monitoring Summary Report
+    Generated: {report_time}
 
-    Current Status:
-    {'-'*50}"""
-                for station in status_df:
-                    summary += f"\n{station['Station']}:"
-                    summary += f"\n- Current Level: {station['Current Level']}"
-                    summary += f"\n- Risk Level: {station['Risk Level']}"
-                    summary += f"\n- Status: {station['Status']}\n"
-                
-                st.download_button(
-                    label="Download Report",
-                    data=summary,
-                    file_name=f"flood_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                    mime='text/plain'
-                )
+    SYSTEM STATUS
+    {'='*50}
+    Total Stations: {total_stations}
+    Stations at Risk: {len(high_risk_stations)}
+    Normal Operations: {len(normal_stations)}
+
+    STATION DETAILS
+    {'='*50}
+    """
+            for station_info in status_table:
+                summary_report += f"\n{station_info['Station']}:"
+                summary_report += f"\n  Current Level: {station_info['Current Level (m)']}m"
+                summary_report += f"\n  Status: {station_info['Risk Status']}"
+                summary_report += f"\n  Trend: {station_info['Trend']}\n"
+            
+            if high_risk_stations:
+                summary_report += f"\n\nALERT: The following stations require attention:\n"
+                for station in high_risk_stations:
+                    summary_report += f"  - {station}\n"
+            else:
+                summary_report += f"\n\nAll stations operating within normal parameters.\n"
+            
+            summary_report += f"\n{'='*50}\nEnd of Report"
+            
+            st.download_button(
+                label="📥 Download Summary Report",
+                data=summary_report,
+                file_name=f"flood_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime='text/plain',
+                use_container_width=True
+            )
+            
+            st.caption("Text-based summary for quick reference")
+        
+        # Report preview
+        with st.expander("📋 Preview Summary Report", expanded=False):
+            st.text(summary_report)
 
     def show_mobile_dashboard(self, data):
         """
