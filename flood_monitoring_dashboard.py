@@ -884,108 +884,119 @@ class FloodMonitoringDashboard:
             st.markdown("🔴 **High Risk** - Alert")
 
     def show_alerts(self, data):
-        """Display flood alerts tab with enhanced alert system"""
-        st.header("Flood Alerts and Warnings")
+        """Streamlined alert management tab"""
+        st.header("Alert Management & Notifications")
+        
         if data is None:
             st.warning("No data available for generating alerts")
             return
 
-        # Create tabs for current alerts and history
-        current_tab, history_tab = st.tabs(["Current Alerts", "Alert History"])
+        # Current alert status overview
+        st.subheader("Current Alert Status")
         
-        with current_tab:
-            # Generate and display alerts for each station
-            for station in data['location_name'].unique():
-                station_data = data[data['location_name'] == station]
-                current_level = station_data['river_level'].iloc[0]
-                
-                # Use enhanced alert system to generate alert
-                alert = self.enhanced_alert_system.generate_alert(station, current_level)
-                
-                # Send notifications
-                notification_channels = self.enhanced_alert_system.send_notifications(alert)
-                
-                # Display alert with styling based on alert level
-                alert_styling = {
-                    'CRITICAL': (st.error, "🚨", "red"),
-                    'HIGH': (st.error, "🚨", "red"),
-                    'WARNING': (st.warning, "⚠️", "orange"),
-                    'MONITOR': (st.info, "ℹ️", "yellow"),
-                    'NORMAL': (st.success, "✅", "green")
-                }
-                
-                # Get appropriate styling
-                alert_display, icon, color = alert_styling.get(
-                    alert['alert_level'], 
-                    (st.info, "ℹ️", "blue")
-                )
-                
-                # Display alert
-                alert_display(f"{icon} **{alert['alert_level']} FLOOD RISK** at {station}")
-                
-                # Metrics and additional information
-                st.metric(
-                    label=f"{station} Current Level",
-                    value=f"{current_level:.3f}m",
-                    delta=f"{alert['alert_level']} Risk"
-                )
-                
-                # Additional alert details
-                with st.expander("Alert Details"):
-                    st.write(f"**Description:** {alert['description']}")
-                    st.write(f"**Notification Channels:** {', '.join(notification_channels) or 'No channels notified'}")
-        
-        with history_tab:
-            # Retrieve and display recent alerts
-            recent_alerts = self.enhanced_alert_system.get_recent_alerts(days=7)
+        alert_summary = []
+        for station in data['location_name'].unique():
+            station_data = data[data['location_name'] == station]
+            current_level = station_data['river_level'].iloc[0]
+            thresholds = self.predictor.thresholds[station]
+            risk_level, color = self.predictor.get_risk_level(current_level, station)
             
-            if not recent_alerts.empty:
-                st.subheader("Recent Alerts (Last 7 Days)")
-                
-                # Format the dataframe for display
-                display_df = recent_alerts.copy()
-                display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-                display_df['current_level'] = display_df['current_level'].round(3)
-                
-                # Highlight rows based on alert level
-                def color_alert_levels(row):
-                    if row['alert_level'] == 'CRITICAL':
-                        return ['background-color: #ffcccc']*len(row)
-                    elif row['alert_level'] == 'HIGH':
-                        return ['background-color: #ffeeee']*len(row)
-                    elif row['alert_level'] == 'WARNING':
-                        return ['background-color: #fff2cc']*len(row)
-                    return [''] * len(row)
-                
-                # Display dataframe with conditional formatting
-                st.dataframe(
-                    display_df.style.apply(color_alert_levels, axis=1),
-                    hide_index=True
-                )
+            # Determine time until threshold
+            recent_trend = station_data.head(24)['river_level'].diff().mean()
+            
+            if risk_level == 'NORMAL' and recent_trend > 0:
+                distance_to_warning = thresholds['warning'] - current_level
+                hours_to_warning = distance_to_warning / (recent_trend * 24) if recent_trend > 0 else float('inf')
+                status_message = f"{hours_to_warning:.1f} hours to warning level" if hours_to_warning < 100 else "Stable"
             else:
-                st.info("No alerts in the past 7 days")
+                status_message = "Within safe range"
             
-            # Emergency guidance section
-            st.subheader("Emergency Guidance")
-            col1, col2 = st.columns(2)
+            alert_summary.append({
+                'station': station,
+                'current_level': current_level,
+                'risk_level': risk_level,
+                'color': color,
+                'status_message': status_message,
+                'trend': '↑' if recent_trend > 0 else '↓'
+            })
+        
+        # Display alert cards
+        cols = st.columns(3)
+        for i, alert_info in enumerate(alert_summary):
+            with cols[i]:
+                # Determine emoji based on risk
+                emoji_map = {
+                    'NORMAL': '✅',
+                    'LOW': '⚠️',
+                    'MODERATE': '⚠️',
+                    'HIGH': '🚨'
+                }
+                emoji = emoji_map.get(alert_info['risk_level'], 'ℹ️')
+                
+                st.markdown(f"""
+                <div style='padding: 20px; border-radius: 10px; border: 2px solid {alert_info['color']}; background-color: {alert_info['color']}20;'>
+                    <h3>{emoji} {alert_info['station']}</h3>
+                    <p><strong>Level:</strong> {alert_info['current_level']:.3f}m {alert_info['trend']}</p>
+                    <p><strong>Status:</strong> {alert_info['risk_level']}</p>
+                    <p style='font-size: 0.9em; color: #666;'>{alert_info['status_message']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Alert threshold configuration
+        st.subheader("Alert Thresholds")
+        
+        threshold_data = []
+        for station in data['location_name'].unique():
+            thresholds = self.predictor.thresholds[station]
+            threshold_data.append({
+                'Station': station,
+                'Warning Level': f"{thresholds['warning']:.2f}m",
+                'Alert Level': f"{thresholds['alert']:.2f}m",
+                'Critical Level': f"{thresholds['critical']:.2f}m"
+            })
+        
+        st.dataframe(pd.DataFrame(threshold_data), use_container_width=True, hide_index=True)
+        
+        # Emergency guidance
+        st.markdown("---")
+        st.subheader("Emergency Response Guidelines")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **🟢 Normal / Low Risk**
+            - Continue regular monitoring
+            - No immediate action required
+            - Check dashboard daily
+            - Stay informed of weather forecasts
+            """)
             
-            with col1:
-                st.markdown("""
-                ### For Low to Moderate Risk
-                - Stay informed
-                - Monitor local news
-                - Prepare emergency kit
-                - Check local flood warnings
-                """)
+            st.markdown("""
+            **🟡 Moderate Risk**
+            - Increase monitoring frequency
+            - Review emergency plans
+            - Prepare emergency supplies
+            - Monitor local authority updates
+            """)
+        
+        with col2:
+            st.markdown("""
+            **🔴 High Risk / Critical**
+            - Immediate action required
+            - Follow evacuation orders if issued
+            - Move to higher ground
+            - Contact emergency services: **999**
+            - Flood helpline: **0345 988 1188**
+            """)
             
-            with col2:
-                st.markdown("""
-                ### For High to Critical Risk
-                - Prepare for immediate evacuation
-                - Move to higher ground
-                - Protect critical belongings
-                - Follow official emergency guidance
-                """)
+            st.markdown("""
+            **📱 Useful Links**
+            - [Environment Agency Flood Warnings](https://flood-warning-information.service.gov.uk/)
+            - [Met Office Weather Warnings](https://www.metoffice.gov.uk/warnings)
+            """)
 
     def show_advanced_analytics(self, data):
         """Display advanced analytics tab"""
