@@ -765,100 +765,109 @@ class FloodMonitoringDashboard:
 
 
     def show_geospatial_view(self, data):
-        """Display geospatial view tab"""
+        """Enhanced geospatial view with better visuals"""
         st.header("Station Geographic Distribution")
         
-        # Create station data for map
-        stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
-        stations_df.reset_index(inplace=True)
-        stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level']
-
-        if data is not None:
-            # Add current levels to stations
-            current_levels = data.groupby('location_name')['river_level'].first()
-            stations_df['Current Level'] = stations_df['Station'].map(current_levels)
-
-        # Create map
-        fig = px.scatter_mapbox(
-            stations_df, 
-            lat='Latitude', 
-            lon='Longitude',
-            hover_name='Station',
-            hover_data=['Full Name', 'River', 'Description', 'Risk Level', 'Current Level'],
-            color='Risk Level',
-            color_discrete_map={
-                'Low': 'green', 
-                'Moderate': 'yellow', 
-                'High': 'red'
-            },
-            zoom=9,
-            height=600
-        )
-        fig.update_layout(mapbox_style="open-street-map")
-        st.plotly_chart(fig, use_container_width=True)
-
-    def show_watershed_analysis(self, data):
-        """Display watershed analysis tab"""
-        st.header("Watershed Analysis")
+        # Add context about the region
+        col1, col2 = st.columns([2, 1])
         
-        if data is not None:
-            # Get current levels for each station
-            current_levels = data.groupby('location_name')['river_level'].last()
-            
-            # Display flow paths
-            st.subheader("Water Flow Network")
-            cols = st.columns(3)
-            
-            for i, (station, level) in enumerate(current_levels.items()):
-                with cols[i]:
-                    st.write(f"**{station}**")
-                    info = self.watershed.get_station_info(station)
-                    risk = self.watershed.calculate_risk_score(station, level)
-                    flow = self.watershed.get_flow_path(station)
-                    
-                    # Display station info
-                    st.metric(
-                        "Current Level",
-                        f"{level:.3f}m",
-                        f"Risk: {risk:.1f}%"
-                    )
-                    
-                    # Station details
-                    st.write(f"Elevation: {info['elevation']}m")
-                    st.write(f"Catchment Area: {info['catchment_area']} km²")
-                    
-                    if flow:
-                        st.write(f"Flows to: {flow['next_station']}")
-                        st.write(f"Elevation difference: {flow['elevation_diff']}m")
-                    
-                    # Risk color coding
-                    if risk >= 80:
-                        st.error(f"High Risk: {risk:.1f}%")
-                    elif risk >= 50:
-                        st.warning(f"Moderate Risk: {risk:.1f}%")
-                    else:
-                        st.success(f"Low Risk: {risk:.1f}%")
+        with col1:
+            # Create station data for map
+            stations_df = pd.DataFrame.from_dict(STATION_CONFIG, orient='index')
+            stations_df.reset_index(inplace=True)
+            stations_df.columns = ['Station', 'Full Name', 'Latitude', 'Longitude', 'River', 'Description', 'Risk Level', 'Measure ID']
 
-            # Add Network Summary
-            st.subheader("Network Summary")
-            summary_cols = st.columns(3)
+            if data is not None:
+                # Add current levels and risk status to stations
+                for station in data['location_name'].unique():
+                    station_data = data[data['location_name'] == station]
+                    current_level = station_data['river_level'].iloc[0]
+                    risk_level, _ = self.predictor.get_risk_level(current_level, station)
+                    
+                    # Update dataframe
+                    mask = stations_df['Station'] == station
+                    stations_df.loc[mask, 'Current Level'] = f"{current_level:.3f}m"
+                    stations_df.loc[mask, 'Status'] = risk_level
+
+            # Create enhanced map with better styling
+            # Determine marker colors based on risk
+            def get_color(risk_level):
+                if risk_level == 'HIGH':
+                    return 'red'
+                elif risk_level == 'MODERATE':
+                    return 'orange'
+                elif risk_level == 'LOW':
+                    return 'yellow'
+                else:
+                    return 'green'
+
+            stations_df['Color'] = stations_df['Risk Level'].apply(lambda x: 
+                'yellow' if x == 'Moderate' else 'red' if x == 'High' else 'green')
             
-            total_catchment = sum(info['catchment_area'] 
-                                for info in self.watershed.station_info.values())
-            elevation_range = (max(info['elevation'] 
-                                 for info in self.watershed.station_info.values()) - 
-                             min(info['elevation'] 
-                                 for info in self.watershed.station_info.values()))
-            avg_risk = (sum(self.watershed.calculate_risk_score(s, l) 
-                          for s, l in current_levels.items()) / 
-                       len(current_levels))
+            # Update colors based on actual status if available
+            if 'Status' in stations_df.columns:
+                stations_df['Color'] = stations_df['Status'].apply(get_color)
+
+            # Create map centered on Greater Manchester
+            fig = px.scatter_mapbox(
+                stations_df, 
+                lat='Latitude', 
+                lon='Longitude',
+                hover_name='Station',
+                hover_data={
+                    'Full Name': True,
+                    'River': True,
+                    'Current Level': True if 'Current Level' in stations_df.columns else False,
+                    'Status': True if 'Status' in stations_df.columns else False,
+                    'Latitude': False,
+                    'Longitude': False,
+                    'Color': False
+                },
+                color='Color',
+                color_discrete_map={
+                    'green': '#00ff00',
+                    'yellow': '#ffff00', 
+                    'orange': '#ffa500',
+                    'red': '#ff0000'
+                },
+                size=[20, 20, 20],  # Larger markers
+                zoom=10.5,
+                height=600
+            )
             
-            with summary_cols[0]:
-                st.metric("Total Catchment Area", f"{total_catchment:.1f} km²")
-            with summary_cols[1]:
-                st.metric("Elevation Range", f"{elevation_range}m")
-            with summary_cols[2]:
-                st.metric("Average Network Risk", f"{avg_risk:.1f}%")
+            fig.update_layout(
+                mapbox_style="open-street-map",
+                margin={"r":0,"t":0,"l":0,"b":0},
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.subheader("Station Details")
+            
+            for station in STATION_CONFIG.keys():
+                with st.expander(f"📍 {station}", expanded=False):
+                    info = STATION_CONFIG[station]
+                    st.write(f"**River:** {info['river']}")
+                    st.write(f"**Location:** {info['full_name']}")
+                    
+                    if data is not None:
+                        station_data = data[data['location_name'] == station]
+                        if not station_data.empty:
+                            current_level = station_data['river_level'].iloc[0]
+                            risk_level, color = self.predictor.get_risk_level(current_level, station)
+                            
+                            st.metric("Current Level", f"{current_level:.3f}m")
+                            st.markdown(f"**Status:** :{color}[{risk_level}]")
+            
+            # Add legend
+            st.markdown("---")
+            st.subheader("Map Legend")
+            st.markdown("🟢 **Normal** - No risk")
+            st.markdown("🟡 **Low Risk** - Monitor")
+            st.markdown("🟠 **Moderate** - Warning")
+            st.markdown("🔴 **High Risk** - Alert")
 
     def show_alerts(self, data):
         """Display flood alerts tab with enhanced alert system"""
