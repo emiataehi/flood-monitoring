@@ -315,20 +315,17 @@ def fetch_river_data(self, days_back=7):
                             'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
                         })
             except Exception as e:
-                st.warning(f"Could not fetch data for {station_name}: {e}")
                 continue
         
         if all_data:
             df = pd.DataFrame(all_data)
             df = df.sort_values('river_timestamp', ascending=False)
-            st.success(f"✅ Fetched {len(df)} real-time readings from UK Environment Agency")
             return df
                     
-    except Exception as e:
-        st.warning(f"API error: {e}")
+    except Exception:
+        pass
     
     # Fallback to simulated data
-    st.info("Using simulated data")
     return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
@@ -1423,4 +1420,5 @@ def main():
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
+
     main()	
