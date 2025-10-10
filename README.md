@@ -8,6 +8,7 @@ A machine learning-based flood monitoring system for Greater Manchester achievin
 
 **Performance:** 97.7% accuracy, 95.5% precision, 94.9% recall with 525ms average processing time
 
-**Research:** MSc Data Science dissertation (Distinction) - University of Wolverhampton
+**Research:** MSc Data Science dissertation (Distinction) 
+
 
 **Contact:** emi.igein@gmail.com
