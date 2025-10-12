@@ -13,19 +13,17 @@ Interactive Streamlit App:https://floodmonitoringdashboardpy-w5atucr3y6mnjqzbwyf
 The system continuously collects and processes data from multiple sources: 
 
 - Real-time river and rainfall data from UK Environment Agency APIs (updated every 15 minutes)
-
 - Historical hydrological and meteorological datasets for baseline modelling
 
 ***Supabase cloud database for real-time data ingestion, storage, and retrieval***
 
-- Data is cleaned, standardized, and analyzed through a pipeline that includes:
+**Data is cleaned, standardized, and analyzed through a pipeline that includes:**
 
 - Missing data handling (Random Forest imputation & mode imputation)
-
--- Feature engineering (rolling statistics, lag features, rate-of-change)
--- Z-score & interquartile range analysis for statistical anomaly detection
--- ML-based anomaly prediction via Random Forest and LSTM models
---Ensemble weighting for adaptive anomaly scoring
+- Feature engineering (rolling statistics, lag features, rate-of-change)
+- Z-score & interquartile range analysis for statistical anomaly detection
+- ML-based anomaly prediction via Random Forest and LSTM models
+- Ensemble weighting for adaptive anomaly scoring
 
 The Streamlit dashboard visualizes live and historical trends, anomalies, and alert thresholds, while the backend processes new data with an average latency of 525ms.
 
@@ -126,6 +124,7 @@ Email: emi.igein@gmail.com
 GitHub: [github.com/emiataehi](https://github.com/emiataehi/)
 
 LinkedIn: [LinkedIn](https://www.linkedin.com/in/emi-igein-b024-8147)
+
 
 
 
