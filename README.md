@@ -6,8 +6,7 @@ The system integrates real-time river level, rainfall, and meteorological data t
 
 ## 🌍 Live Dashboard
 
-Interactive Streamlit App: Flood Monitoring Dashboard
-https://floodmonitoringdashboardpy-w5atucr3y6mnjqzbwyfmyn.streamlit.app/
+Interactive Streamlit App:https://floodmonitoringdashboardpy-w5atucr3y6mnjqzbwyfmyn.streamlit.app/
 
 ## ⚙️ System Overview
 
@@ -15,7 +14,9 @@ The system continuously collects and processes data from multiple sources:
 
 -- Real-time river and rainfall data from UK Environment Agency APIs (updated every 15 minutes)
 -- Historical hydrological and meteorological datasets for baseline modelling
--- Supabase cloud database for real-time data ingestion, storage, and retrieval
+
+***Supabase cloud database for real-time data ingestion, storage, and retrieval***
+
 -- Data is cleaned, standardized, and analyzed through a pipeline that includes:
 -- Missing data handling (Random Forest imputation & mode imputation)
 -- Feature engineering (rolling statistics, lag features, rate-of-change)
@@ -26,10 +27,13 @@ The system continuously collects and processes data from multiple sources:
 The Streamlit dashboard visualizes live and historical trends, anomalies, and alert thresholds, while the backend processes new data with an average latency of 525ms.
 
 ## 🧠 Machine Learning Approach
-Model	Purpose	Key Metrics
-Random Forest Regressor	Detects abnormal river level patterns	R² = 0.96
-LSTM Neural Network	Predicts sequential water level trends	RMSE < 0.5
-Ensemble Method	Combines Random Forest + LSTM outputs	Accuracy = 97.7%, Precision = 95.5%, Recall = 94.9%
+
+| Model                   | Purpose                                | Key Metrics                                         |
+| ----------------------- | -------------------------------------- | --------------------------------------------------- |
+| Random Forest Regressor | Detects abnormal river level patterns  | R² = 0.96                                           |
+| LSTM Neural Network     | Predicts sequential water level trends | RMSE < 0.5                                          |
+| Ensemble Method         | Combines Random Forest + LSTM outputs  | Accuracy = 97.7%, Precision = 95.5%, Recall = 94.9% |
+
 
 Each station has its own trained models and dynamic thresholds to ensure local calibration of flood risk alerts.
 
@@ -46,36 +50,28 @@ Each station has its own trained models and dynamic thresholds to ensure local c
 
 **Pipeline Workflow:**
 
-Data ingestion → 2. Data preprocessing → 3. Feature extraction →
-
-Model inference (Random Forest & LSTM) → 5. Anomaly scoring →
-
-## Visualization & alert generation
+1. Data ingestion → 2. Data preprocessing → 3. Feature extraction →
+2. Model inference (Random Forest & LSTM) → 5. Anomaly scoring →
+3. Visualization & alert generation
 
 **📊 Example Dashboard Views**
 
-River level trends with anomaly highlights
-
-Real-time rainfall vs. flow correlation plots
-
-Risk-level indicators by station
-
-Time-lag correlation visualizations between upstream and downstream stations
+-- River level trends with anomaly highlights
+-- Real-time rainfall vs. flow correlation plots
+-- Risk-level indicators by station
+-- Time-lag correlation visualizations between upstream and downstream stations
 
 
-🚀 Performance Summary
+## 🚀 Performance Summary
 
-Accuracy: 97.7%
+-- Accuracy: 97.7%
+-- Precision: 95.5%
+-- Recall: 94.9%
+-- Average processing time: 525ms
+-- Alert delivery time: <5 seconds
 
-Precision: 95.5%
+## 📂 Repository Structure
 
-Recall: 94.9%
-
-Average processing time: 525ms
-
-Alert delivery time: <5 seconds
-
-📂 Repository Structure
 flood-monitoring/
 │
 ├── data/                     # Historical and sample real-time data
@@ -90,45 +86,43 @@ flood-monitoring/
 ├── requirements.txt
 └── README.md
 
-🔧 How to Run Locally
 
-Clone the repository
+## 🔧 How to Run Locally
 
-git clone https://github.com/emiataehi/flood-monitoring.git
+1. Clone the repository
+
+git clone git clone https://github.com/emiataehi/flood-monitoring.git
 cd flood-monitoring
 
 
-Install dependencies
+2. Install dependencies
 
 pip install -r requirements.txt
 
 
-Run the Streamlit dashboard
+3. Run the Streamlit dashboard
 
 streamlit run dashboard/app.py
 
-
 (Optional) Configure your Supabase credentials in .env
 
-🔍 Future Enhancements
+## 🔍 Future Enhancements
 
-Expansion to additional UK monitoring stations
+-- Expansion to additional UK monitoring stations
+-- Integration of adaptive learning for evolving flood dynamics
+-- Enhanced alerting via mobile notifications and email
+-- Deeper spatial correlation mapping using GIS data
 
-Integration of adaptive learning for evolving flood dynamics
+## 📫 Contact
 
-Enhanced alerting via mobile notifications and email
-
-Deeper spatial correlation mapping using GIS data
-
-📫 Contact
-
-For feedback, collaboration, or inquiries:
+**For feedback, collaboration, or inquiries:**
 Email: emi.igein@gmail.com
 
 GitHub: github.com/emiataehi
 
 LinkedIn: www.linkedin.com/in/
 emi-igein-b024a8147
+
 
 
 
