@@ -92,6 +92,7 @@ flood-monitoring/
 1. Clone the repository
 
 git clone git clone https://github.com/emiataehi/flood-monitoring.git
+
 cd flood-monitoring
 
 
@@ -118,10 +119,10 @@ streamlit run dashboard/app.py
 **For feedback, collaboration, or inquiries:**
 Email: emi.igein@gmail.com
 
-GitHub: github.com/emiataehi
+GitHub: [github.com/emiataehi](https://github.com/emiataehi/)
 
-LinkedIn: www.linkedin.com/in/
-emi-igein-b024a8147
+LinkedIn: [LinkedIn](https://www.linkedin.com/in/emi-igein-b024-8147)
+
 
 
 
