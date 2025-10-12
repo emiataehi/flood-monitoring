@@ -4,35 +4,28 @@ This project presents a machine learning-driven flood monitoring system designed
 
 The system integrates real-time river level, rainfall, and meteorological data to detect potential flood risks using a hybrid ensemble approach that combines statistical analysis, Random Forest regression, and LSTM neural networks. It achieves over 97% accuracy in anomaly detection with sub-second response times, enabling near real-time alerts and decision support.
 
-🌍 Live Dashboard
+## 🌍 Live Dashboard
 
 Interactive Streamlit App: Flood Monitoring Dashboard
+https://floodmonitoringdashboardpy-w5atucr3y6mnjqzbwyfmyn.streamlit.app/
 
-⚙️ System Overview
+## ⚙️ System Overview
 
-The system continuously collects and processes data from multiple sources:
+The system continuously collects and processes data from multiple sources: 
 
-Real-time river and rainfall data from UK Environment Agency APIs (updated every 15 minutes)
-
-Historical hydrological and meteorological datasets for baseline modelling
-
-Supabase cloud database for real-time data ingestion, storage, and retrieval
-
-Data is cleaned, standardized, and analyzed through a pipeline that includes:
-
-Missing data handling (Random Forest imputation & mode imputation)
-
-Feature engineering (rolling statistics, lag features, rate-of-change)
-
-Z-score & interquartile range analysis for statistical anomaly detection
-
-ML-based anomaly prediction via Random Forest and LSTM models
-
-Ensemble weighting for adaptive anomaly scoring
+-- Real-time river and rainfall data from UK Environment Agency APIs (updated every 15 minutes)
+-- Historical hydrological and meteorological datasets for baseline modelling
+-- Supabase cloud database for real-time data ingestion, storage, and retrieval
+-- Data is cleaned, standardized, and analyzed through a pipeline that includes:
+-- Missing data handling (Random Forest imputation & mode imputation)
+-- Feature engineering (rolling statistics, lag features, rate-of-change)
+-- Z-score & interquartile range analysis for statistical anomaly detection
+-- ML-based anomaly prediction via Random Forest and LSTM models
+--Ensemble weighting for adaptive anomaly scoring
 
 The Streamlit dashboard visualizes live and historical trends, anomalies, and alert thresholds, while the backend processes new data with an average latency of 525ms.
 
-🧠 Machine Learning Approach
+## 🧠 Machine Learning Approach
 Model	Purpose	Key Metrics
 Random Forest Regressor	Detects abnormal river level patterns	R² = 0.96
 LSTM Neural Network	Predicts sequential water level trends	RMSE < 0.5
@@ -40,31 +33,26 @@ Ensemble Method	Combines Random Forest + LSTM outputs	Accuracy = 97.7%, Precisio
 
 Each station has its own trained models and dynamic thresholds to ensure local calibration of flood risk alerts.
 
-🏗️ Architecture
+## 🏗️ Architecture
 
-Tech Stack:
+**Tech Stack:**
 
-Python – Data processing, ML model training
+-- Python – Data processing, ML model training
+-- Streamlit – Interactive web dashboard
+-- Supabase (PostgreSQL) – Cloud-based real-time database
+-- Plotly & Matplotlib – Visualization
+-- Scikit-learn, TensorFlow/Keras – ML model development
+-- GitHub Actions – Automated updates and deployment
 
-Streamlit – Interactive web dashboard
-
-Supabase (PostgreSQL) – Cloud-based real-time database
-
-Plotly & Matplotlib – Visualization
-
-Scikit-learn, TensorFlow/Keras – ML model development
-
-GitHub Actions – Automated updates and deployment
-
-Pipeline Workflow:
+**Pipeline Workflow:**
 
 Data ingestion → 2. Data preprocessing → 3. Feature extraction →
 
 Model inference (Random Forest & LSTM) → 5. Anomaly scoring →
 
-Visualization & alert generation
+## Visualization & alert generation
 
-📊 Example Dashboard Views
+**📊 Example Dashboard Views**
 
 River level trends with anomaly highlights
 
@@ -141,5 +129,6 @@ GitHub: github.com/emiataehi
 
 LinkedIn: www.linkedin.com/in/
 emi-igein-b024a8147
+
 
 
