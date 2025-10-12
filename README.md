@@ -12,13 +12,16 @@ Interactive Streamlit App:https://floodmonitoringdashboardpy-w5atucr3y6mnjqzbwyf
 
 The system continuously collects and processes data from multiple sources: 
 
--- Real-time river and rainfall data from UK Environment Agency APIs (updated every 15 minutes)
--- Historical hydrological and meteorological datasets for baseline modelling
+- Real-time river and rainfall data from UK Environment Agency APIs (updated every 15 minutes)
+
+- Historical hydrological and meteorological datasets for baseline modelling
 
 ***Supabase cloud database for real-time data ingestion, storage, and retrieval***
 
--- Data is cleaned, standardized, and analyzed through a pipeline that includes:
--- Missing data handling (Random Forest imputation & mode imputation)
+- Data is cleaned, standardized, and analyzed through a pipeline that includes:
+
+- Missing data handling (Random Forest imputation & mode imputation)
+
 -- Feature engineering (rolling statistics, lag features, rate-of-change)
 -- Z-score & interquartile range analysis for statistical anomaly detection
 -- ML-based anomaly prediction via Random Forest and LSTM models
@@ -41,12 +44,12 @@ Each station has its own trained models and dynamic thresholds to ensure local c
 
 **Tech Stack:**
 
--- Python – Data processing, ML model training
--- Streamlit – Interactive web dashboard
--- Supabase (PostgreSQL) – Cloud-based real-time database
--- Plotly & Matplotlib – Visualization
--- Scikit-learn, TensorFlow/Keras – ML model development
--- GitHub Actions – Automated updates and deployment
+- Python – Data processing, ML model training
+- Streamlit – Interactive web dashboard
+- Supabase (PostgreSQL) – Cloud-based real-time database
+- Plotly & Matplotlib – Visualization
+- Scikit-learn, TensorFlow/Keras – ML model development
+- GitHub Actions – Automated updates and deployment
 
 **Pipeline Workflow:**
 
@@ -56,19 +59,19 @@ Each station has its own trained models and dynamic thresholds to ensure local c
 
 **📊 Example Dashboard Views**
 
--- River level trends with anomaly highlights
--- Real-time rainfall vs. flow correlation plots
--- Risk-level indicators by station
--- Time-lag correlation visualizations between upstream and downstream stations
+- River level trends with anomaly highlights
+- Real-time rainfall vs. flow correlation plots
+- Risk-level indicators by station
+- Time-lag correlation visualizations between upstream and downstream stations
 
 
 ## 🚀 Performance Summary
 
--- Accuracy: 97.7%
--- Precision: 95.5%
--- Recall: 94.9%
--- Average processing time: 525ms
--- Alert delivery time: <5 seconds
+- Accuracy: 97.7%
+- Precision: 95.5%
+- Recall: 94.9%
+- Average processing time: 525ms
+- Alert delivery time: <5 seconds
 
 ## 📂 Repository Structure
 
@@ -85,6 +88,7 @@ flood-monitoring/
 ├── dashboard/                # Streamlit app files
 ├── requirements.txt
 └── README.md
+
 
 
 ## 🔧 How to Run Locally
@@ -109,10 +113,10 @@ streamlit run dashboard/app.py
 
 ## 🔍 Future Enhancements
 
--- Expansion to additional UK monitoring stations
--- Integration of adaptive learning for evolving flood dynamics
--- Enhanced alerting via mobile notifications and email
--- Deeper spatial correlation mapping using GIS data
+- Expansion to additional UK monitoring stations
+- Integration of adaptive learning for evolving flood dynamics
+- Enhanced alerting via mobile notifications and email
+- Deeper spatial correlation mapping using GIS data
 
 ## 📫 Contact
 
@@ -122,6 +126,7 @@ Email: emi.igein@gmail.com
 GitHub: [github.com/emiataehi](https://github.com/emiataehi/)
 
 LinkedIn: [LinkedIn](https://www.linkedin.com/in/emi-igein-b024-8147)
+
 
 
 
