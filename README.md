@@ -71,8 +71,8 @@ Each station has its own trained models and dynamic thresholds to ensure local c
 - Average processing time: 525ms
 - Alert delivery time: <5 seconds
 
-## 📂 Repository Structure
-
+## 📁 Project Structure
+```
 flood-monitoring/
 │
 ├── data/                     # Historical and sample real-time data
@@ -86,8 +86,7 @@ flood-monitoring/
 ├── dashboard/                # Streamlit app files
 ├── requirements.txt
 └── README.md
-
-
+```
 
 ## 🔧 How to Run Locally
 
@@ -124,6 +123,7 @@ Email: emi.igein@gmail.com
 GitHub: [github.com/emiataehi](https://github.com/emiataehi/)
 
 LinkedIn: [LinkedIn](https://www.linkedin.com/in/emi-igein-b024-8147)
+
 
 
 
