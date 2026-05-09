@@ -284,33 +284,33 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=7):
-		stations = {
-			'Rochdale': '690203-level-stage-i-15_min-m',
-			'Manchester Racecourse': '690510-level-stage-i-15_min-m',
-			'Bury Ground': '690160-level-stage-i-15_min-m'
-		}
-		all_data = []
-		for station_name, measure_id in stations.items():
-			url = f"https://environment.data.gov.uk/flood-monitoring/id/measures/{measure_id}/readings?_sorted&_limit=500"
-			try:
-				response = requests.get(url, timeout=10)
-				if response.status_code == 200:
-					for reading in response.json().get('items', []):
-						all_data.append({
-							'river_timestamp': pd.to_datetime(reading.get('dateTime')),
-							'location_name': station_name,
-							'river_level': reading.get('value', 0),
-							'rainfall': 0,
-							'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
-						})
-			except Exception as e:
-				st.sidebar.warning(f"API unavailable for {station_name}: {type(e).__name__}")
-				continue
-		if all_data:
-			df = pd.DataFrame(all_data).dropna(subset=['river_level'])
-			return df.sort_values('river_timestamp', ascending=False)
-		st.sidebar.info("Using simulated data (live API unavailable)")
-		return self._generate_sample_data(days_back)
+        stations = {
+            'Rochdale': '690203-level-stage-i-15_min-m',
+            'Manchester Racecourse': '690510-level-stage-i-15_min-m',
+            'Bury Ground': '690160-level-stage-i-15_min-m'
+        }
+        all_data = []
+        for station_name, measure_id in stations.items():
+            url = f"https://environment.data.gov.uk/flood-monitoring/id/measures/{measure_id}/readings?_sorted&_limit=500"
+            try:
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    for reading in response.json().get('items', []):
+                        all_data.append({
+                            'river_timestamp': pd.to_datetime(reading.get('dateTime')),
+                            'location_name': station_name,
+                            'river_level': reading.get('value', 0),
+                            'rainfall': 0,
+                            'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
+                        })
+            except Exception as e:
+                st.sidebar.warning(f"API unavailable for {station_name}: {type(e).__name__}")
+                continue
+        if all_data:
+            df = pd.DataFrame(all_data).dropna(subset=['river_level'])
+            return df.sort_values('river_timestamp', ascending=False)
+        st.sidebar.info("Using simulated data (live API unavailable)")
+        return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
@@ -481,7 +481,7 @@ class FloodMonitoringDashboard:
             )
             
             st.plotly_chart(fig, use_container_width=True)
-	
+    
             st.subheader("Anomaly Detection")
             anomaly_summary = {}
 
@@ -1452,4 +1452,4 @@ def main():
     st.query_params.update(refresh=True)
 
 if __name__ == '__main__':
-    main()	
+    main()  
