@@ -85,29 +85,28 @@ class FloodPredictionSystem:
         return trend_direction, level_trend, confidence
     
     def get_risk_level(self, current_level, station):
-        """Get risk level based on analyzed thresholds with more granularity"""
-        thresholds = self.thresholds[station]
-        
-        # MODIFIED: Added buffer zone between alert and critical levels
-        if current_level >= thresholds['critical']:
-            return "HIGH", "red"
-        # Added buffer category to reduce immediate jumps to HIGH
-        elif current_level >= (thresholds['critical'] - 0.01):
-            return "ELEVATED", "orange"
-        elif current_level >= thresholds['alert']:
-            return "MODERATE", "orange"
-        elif current_level >= thresholds['warning']:
-            return "LOW", "yellow"
-        else:
-            return "NORMAL", "green"
+		if current_level is None:
+			return "UNKNOWN", "grey"
+		thresholds = self.thresholds.get(station)
+		if thresholds is None:
+			return "UNKNOWN", "grey"
+		if current_level >= thresholds['critical']:
+			return "HIGH", "red"
+		elif current_level >= (thresholds['critical'] - 0.01):
+			return "ELEVATED", "orange"
+		elif current_level >= thresholds['alert']:
+			return "MODERATE", "orange"
+		elif current_level >= thresholds['warning']:
+			return "LOW", "yellow"
+		else:
+			return "NORMAL", "green"
 
-class EnhancedAlertSystem:
+class LocalAlertSystem:
     def __init__(self):
         # You can modify this section if needed to change alert behavior
         pass
         
     def generate_alert(self, station, current_level):
-        # This is a placeholder - your actual implementation would need to be adjusted
         # based on the modified thresholds in FloodPredictionSystem
         predictor = FloodPredictionSystem()
         risk_level, _ = predictor.get_risk_level(current_level, station)
@@ -285,48 +284,33 @@ class FloodMonitoringDashboard:
             self.supabase = None
 
     def fetch_river_data(self, days_back=7):
-        """Fetch river monitoring data from real API"""
-        try:
-            # Try UK Environment Agency API with correct measure IDs
-            stations = {
-                'Rochdale': '690203-level-stage-i-15_min-m',
-                'Manchester Racecourse': '690510-level-stage-i-15_min-m',
-                'Bury Ground': '690160-level-stage-i-15_min-m'
-            }
-            
-            all_data = []
-            
-            for station_name, measure_id in stations.items():
-                url = f"https://environment.data.gov.uk/flood-monitoring/id/measures/{measure_id}/readings?_sorted&_limit=500"
-                
-                try:
-                    response = requests.get(url, timeout=10)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        readings = data.get('items', [])
-                        
-                        for reading in readings:
-                            all_data.append({
-                                'river_timestamp': pd.to_datetime(reading.get('dateTime')),
-                                'location_name': station_name,
-                                'river_level': reading.get('value', 0),
-                                'rainfall': 0,
-                                'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
-                            })
-                except Exception:
-                    continue
-            
-            if all_data:
-                df = pd.DataFrame(all_data)
-                df = df.sort_values('river_timestamp', ascending=False)
-                return df
-                        
-        except Exception:
-            pass
-        
-        # Fallback to simulated data
-        return self._generate_sample_data(days_back)
+		stations = {
+			'Rochdale': '690203-level-stage-i-15_min-m',
+			'Manchester Racecourse': '690510-level-stage-i-15_min-m',
+			'Bury Ground': '690160-level-stage-i-15_min-m'
+		}
+		all_data = []
+		for station_name, measure_id in stations.items():
+			url = f"https://environment.data.gov.uk/flood-monitoring/id/measures/{measure_id}/readings?_sorted&_limit=500"
+			try:
+				response = requests.get(url, timeout=10)
+				if response.status_code == 200:
+					for reading in response.json().get('items', []):
+						all_data.append({
+							'river_timestamp': pd.to_datetime(reading.get('dateTime')),
+							'location_name': station_name,
+							'river_level': reading.get('value', 0),
+							'rainfall': 0,
+							'rainfall_timestamp': pd.to_datetime(reading.get('dateTime'))
+						})
+			except Exception as e:
+				st.sidebar.warning(f"API unavailable for {station_name}: {type(e).__name__}")
+				continue
+		if all_data:
+			df = pd.DataFrame(all_data).dropna(subset=['river_level'])
+			return df.sort_values('river_timestamp', ascending=False)
+		st.sidebar.info("Using simulated data (live API unavailable)")
+		return self._generate_sample_data(days_back)
 
     def _generate_sample_data(self, days_back=90):
         """Generate sample river monitoring data with current timestamps"""
@@ -1428,7 +1412,7 @@ def main():
         high_risk_count = 0
         for station in river_data['location_name'].unique():
             station_data = river_data[river_data['location_name'] == station]
-            current_level = station_data['river_level'].iloc[0]
+            current_level = station_data['river_level'].iloc[0] if len(station_data) > 0 else None
             risk_level, _ = dashboard.predictor.get_risk_level(current_level, station)
             if risk_level in ['HIGH', 'MODERATE']:
                 high_risk_count += 1
