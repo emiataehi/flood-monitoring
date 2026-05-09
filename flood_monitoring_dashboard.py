@@ -253,7 +253,7 @@ class FloodMonitoringDashboard:
             self.enhanced_alert_system = LocalAlertSystem()
 
         except Exception as e:
-            st.error(f"Failed to initialize dashboard: {e}")
+            st.sidebar.warning(f"Supabase unavailable: {e}")
             self.supabase = None
             # Initialise all components that don't need Supabase
             self.predictor = FloodPredictionSystem()
