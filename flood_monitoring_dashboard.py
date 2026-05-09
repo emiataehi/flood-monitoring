@@ -85,21 +85,21 @@ class FloodPredictionSystem:
         return trend_direction, level_trend, confidence
     
     def get_risk_level(self, current_level, station):
-		if current_level is None:
-			return "UNKNOWN", "grey"
-		thresholds = self.thresholds.get(station)
-		if thresholds is None:
-			return "UNKNOWN", "grey"
-		if current_level >= thresholds['critical']:
-			return "HIGH", "red"
-		elif current_level >= (thresholds['critical'] - 0.01):
-			return "ELEVATED", "orange"
-		elif current_level >= thresholds['alert']:
-			return "MODERATE", "orange"
-		elif current_level >= thresholds['warning']:
-			return "LOW", "yellow"
-		else:
-			return "NORMAL", "green"
+        if current_level is None:
+            return "UNKNOWN", "grey"
+        thresholds = self.thresholds.get(station)
+        if thresholds is None:
+            return "UNKNOWN", "grey"
+        if current_level >= thresholds['critical']:
+            return "HIGH", "red"
+        elif current_level >= (thresholds['critical'] - 0.01):
+            return "ELEVATED", "orange"
+        elif current_level >= thresholds['alert']:
+            return "MODERATE", "orange"
+        elif current_level >= thresholds['warning']:
+            return "LOW", "yellow"
+        else:
+            return "NORMAL", "green"
 
 class LocalAlertSystem:
     def __init__(self):
